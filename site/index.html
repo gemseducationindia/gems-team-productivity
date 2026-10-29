@@ -135,6 +135,7 @@ details.defs { border-top: 1px solid var(--line); padding-top: 18px; color: var(
 details.defs summary { cursor: pointer; color: var(--ink-2); font-weight: 500; font-size: 14px; }
 details.defs p { margin: 10px 0 0; max-width: 120ch; }
 details.defs b { color: var(--ink-2); font-weight: 600; }
+#calls { display: block; width: 100%; height: calc(100vh - var(--top-h, 60px)); border: 0; }
 .tip { position: fixed; z-index: 70; pointer-events: none; background: var(--ink); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 8px; white-space: nowrap; }
 </style>
 </head>
@@ -167,6 +168,7 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
     </div>
   </div>
   <main class="wrap" id="page"></main>
+  <iframe id="calls" title="Call audit" hidden></iframe>
 </div>
 
 <script>
@@ -207,6 +209,7 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
     const kb = b64(entry.key);
     const inner = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: kb.slice(0, 12) }, kek, kb.slice(12))));
     const pk = await crypto.subtle.importKey("pkcs8", b64(inner.pk), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["decrypt"]);
+    PK = pk;
     const b = new Uint8Array(await (await fetch(entry.file + "?t=" + Date.now(), { cache: "no-store" })).arrayBuffer());
     const k = await crypto.subtle.importKey("raw", await crypto.subtle.decrypt({ name: "RSA-OAEP" }, pk, b.slice(0, 256)), "AES-GCM", false, ["decrypt"]);
     const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(256, 268) }, k, b.slice(268));
@@ -216,6 +219,7 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
     return data;
   }
   const showGate = () => { $("#gate").hidden = false; $("#app").hidden = true; $("#user").focus(); };
+  let PK = null;         // this login's private key; it also opens the login's call audit keys
   let DISPATCH = null;   // corporate only: a GitHub token that can only start the refresh run
   let SESS = null;   // {u, k} kept in memory so the page can pull fresh data every few minutes
 
@@ -341,13 +345,32 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
     $("#whoName").textContent = D.user;
     if (D.role !== "corporate") S.tab = "school";
     render();
+    callAuditKeys().then((p) => { CALLS = p; if (p) tabs(); });
+  }
+
+  // ---------- call audit: the call audit site seals this login's keys to its key pair (p/<id>.enc) and runs in a frame ----------
+  let CALLS = null;
+  async function callAuditKeys() {
+    try {
+      const r = await fetch("../gems-call-audit/p/" + SESS.u.slice(0, 16) + ".enc?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return null;
+      const b = new Uint8Array(await r.arrayBuffer());
+      const k = await crypto.subtle.importKey("raw", await crypto.subtle.decrypt({ name: "RSA-OAEP" }, PK, b.slice(0, 256)), "AES-GCM", false, ["decrypt"]);
+      return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(256, 268) }, k, b.slice(268))));
+    } catch (e) { return null; }
+  }
+  function showCalls() {
+    const f = $("#calls");
+    $("#page").hidden = true; $("#bar").hidden = true; f.hidden = false;
+    document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
+    if (!f.src) { window.gemsCallAuditPayload = CALLS; f.src = "../gems-call-audit/?embed=1"; }
   }
 
   function tabs() {
-    const list = D.role === "corporate" ? [["central", "Central desk"], ["school", "School teams"]] : [["school", "School teams"]];
+    const list = (D.role === "corporate" ? [["central", "Central desk"], ["school", "School teams"]] : [["school", "School teams"]]).concat(CALLS ? [["calls", "Call audit"]] : []);
     for (const id of ["#tabs", "#mtabs"]) {
       $(id).replaceChildren(...list.map(([k, label]) => h("button", { class: "tab", role: "tab", "aria-selected": String(S.tab === k),
-        onclick: () => { S.tab = k; S.person = "all"; render(); } }, label)));
+        onclick: () => { S.tab = k; S.person = "all"; if (k === "calls") { tabs(); showCalls(); } else render(); } }, label)));
     }
   }
 
@@ -472,6 +495,8 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
   function untip() { if (TIP) TIP.remove(); TIP = null; }
 
   function render() {
+    if (S.tab === "calls") { tabs(); return; }
+    $("#page").hidden = false; $("#bar").hidden = false; $("#calls").hidden = true;
     tabs(); bar();
     const [a, b] = range();
     const gs = groups();
