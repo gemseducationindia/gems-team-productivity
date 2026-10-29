@@ -3,6 +3,7 @@
     python logins.py add "Corporate" all
     python logins.py add "dip.kumar@gemsedu.in" "GMS Vikhroli, GMS Kalyan"      # prints a new password
     python logins.py add "dip.kumar@gemsedu.in" "GMS Vikhroli" --password "..."  # set your own password
+    python logins.py password "dip.kumar@gemsedu.in" "old password" "new password"   # same key pair, so nothing else changes
     python logins.py remove "dip.kumar@gemsedu.in"
     python logins.py list
     python logins.py dispatch-token "github_pat_..."   # lets Corporate's Refresh button start a CRM pull (see README)
@@ -65,6 +66,14 @@ if __name__ == "__main__":
                 pub = serialization.load_der_public_key(base64.b64decode(e["pub"]))
                 e["dispatch"] = b64(pub.encrypt(sys.argv[2].encode(), padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None)))
         save(d); print("saved for corporate logins (run it again after resetting a corporate password)")
+    elif cmd == "password":
+        # re-encrypt the same private key under the new password: the published data and the call audit keys still open
+        d = load(); e = d[uid(sys.argv[2])]; kb = base64.b64decode(e["key"])
+        old = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=base64.b64decode(e["salt"]), iterations=e["iter"]).derive(sys.argv[3].encode())
+        inner = AESGCM(old).decrypt(kb[:12], kb[12:], None)
+        salt, iv = secrets.token_bytes(16), secrets.token_bytes(12)
+        new = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=600000).derive(sys.argv[4].encode())
+        e.update(salt=b64(salt), iter=600000, key=b64(iv + AESGCM(new).encrypt(iv, inner, None))); save(d); print("password changed")
     elif cmd == "remove":
         d = load(); print("removed" if d.pop(uid(sys.argv[2]), None) else "no such login"); save(d)
     else:
