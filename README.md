@@ -22,3 +22,10 @@ manager's login sees only their campuses: https://gemseducationindia.github.io/g
 
 It prints the new password. Use `--password "..."` to choose one, `python logins.py remove "name@gemsedu.in"` to remove a login,
 and `python logins.py add` again with the same name to reset a password.
+
+## Refresh button
+
+Every login's Refresh button loads the newest published copy. For Corporate it also starts `refresh.yml`, which pulls the CRM
+again (about a minute). That needs the `CRM_TOKEN` Actions secret, and a fine-grained GitHub token limited to this repo with
+Actions: Read and write, saved with `python logins.py dispatch-token "github_pat_..."` (encrypted to the Corporate login's key,
+so only that password can use it). Run it again after resetting the Corporate password.

@@ -41,7 +41,7 @@ for u, e in logins.items():
     wrapped = pub.encrypt(k, padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
     blob = gzip.compress(json.dumps(data, separators=(",", ":")).encode(), mtime=0)
     open(os.path.join(out, e["file"]), "wb").write(wrapped + iv + AESGCM(k).encrypt(iv, blob, None))
-    index[u] = {k2: e[k2] for k2 in ("iter", "salt", "key", "file")}
+    index[u] = {k2: e[k2] for k2 in ("iter", "salt", "key", "file", "dispatch") if k2 in e}
     print(f"{u[:8]}: {data['role']}, {len(data['campuses'])} campuses, {len(data['people'])} people")
 json.dump(index, open(os.path.join(out, "users.json"), "w"), indent=1)
 open(os.path.join(out, ".nojekyll"), "w").close()

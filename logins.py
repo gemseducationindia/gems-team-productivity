@@ -5,6 +5,7 @@
     python logins.py add "dip.kumar@gemsedu.in" "GMS Vikhroli" --password "..."  # set your own password
     python logins.py remove "dip.kumar@gemsedu.in"
     python logins.py list
+    python logins.py dispatch-token "github_pat_..."   # lets Corporate's Refresh button start a CRM pull (see README)
 
 Each login gets its own RSA key pair. The public key is stored as is; the private key is stored encrypted with a key derived from
 the password (PBKDF2-SHA256, 600k iterations, AES-256-GCM). The refresh job encrypts each login's data with its public key, so
@@ -55,6 +56,15 @@ if __name__ == "__main__":
     if cmd == "add":
         pw = sys.argv[sys.argv.index("--password") + 1] if "--password" in sys.argv else None
         add(sys.argv[2], sys.argv[3], pw)
+    elif cmd == "dispatch-token":
+        # encrypt the token to each corporate login's public key, so only those passwords can read it in the browser
+        from cryptography.hazmat.primitives.asymmetric import padding
+        d = load()
+        for e in d.values():
+            if e["campuses"] == "all":
+                pub = serialization.load_der_public_key(base64.b64decode(e["pub"]))
+                e["dispatch"] = b64(pub.encrypt(sys.argv[2].encode(), padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None)))
+        save(d); print("saved for corporate logins (run it again after resetting a corporate password)")
     elif cmd == "remove":
         d = load(); print("removed" if d.pop(uid(sys.argv[2]), None) else "no such login"); save(d)
     else:

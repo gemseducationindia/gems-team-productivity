@@ -68,7 +68,8 @@ calls = get("CRM Call Log", ["caller", "to", "status", "duration", "start_time"]
 # a lead with any call linked to it (incoming too) is not untouched, as in Insights
 linked = {c["reference_docname"] for c in get("CRM Call Log", ["reference_docname"], [["reference_doctype", "=", "CRM Lead"], ["reference_docname", "is", "set"]])}
 dialled = set()
-agg = defaultdict(lambda: [0, 0, 0])   # (date, person) -> dials, connects, talk seconds
+agg = defaultdict(lambda: [0, 0, 0, set()])   # (date, person) -> dials, connects, talk seconds, numbers dialled
+num_id = {}                                    # number -> anonymous id, so per-lead averages can count distinct numbers
 for c in calls:
     dialled.add((c["to"] or "")[-10:])   # RIGHT(to, 10), as in Insights
     d, who = day(c["start_time"]), c["caller"]
@@ -76,7 +77,8 @@ for c in calls:
     targets = ([pidx[("c", who)]] if who in central_set else []) + [p for _, p in school_of.get(who, [])]
     for p in targets:
         a = agg[(d, p)]; a[0] += 1; a[1] += 1 if c["status"] == "Completed" and (c["duration"] or 0) > 0 else 0; a[2] += int(c["duration"] or 0)
-days = sorted([d, p, *v] for (d, p), v in agg.items())
+        a[3].add(num_id.setdefault((c["to"] or "")[-10:], len(num_id)))
+days = sorted([d, p, v[0], v[1], v[2], sorted(v[3])] for (d, p), v in agg.items())
 
 # ---- leads, owners and visits ----
 leads = get("CRM Lead", ["name", "status", "lead_owner", "visit_attempts", "visit_done_on", "modified", "mobile_digits"])

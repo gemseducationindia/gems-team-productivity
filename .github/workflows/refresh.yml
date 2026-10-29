@@ -1,5 +1,5 @@
-# Backup only: the refresh is run by a Claude scheduled task (refresh.sh). Run this by hand from the Actions tab if needed;
-# it needs the CRM_TOKEN secret.
+# On demand: started by the dashboard's Refresh button (Corporate login) or by hand from the Actions tab. Needs the CRM_TOKEN
+# secret. The hourly refresh is a Claude scheduled task that runs refresh.sh.
 name: Refresh
 on:
   workflow_dispatch:

@@ -61,6 +61,24 @@ button, select { font: inherit; color: inherit; letter-spacing: inherit; }
 .seg button[aria-pressed="true"] { background: #fff; color: var(--ink); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); }
 .sel { flex: none; height: 34px; padding: 0 30px 0 14px; border: 1px solid var(--line-2); border-radius: 980px; background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="%236E6E73" stroke-width="1.6" stroke-linecap="round"><path d="m4 6 4 4 4-4"/></svg>') no-repeat right 10px center / 14px; font-size: 14px; cursor: pointer; appearance: none; -webkit-appearance: none; }
 .sel:hover { border-color: var(--faint); }
+.ctl { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 980px; background: #fff; cursor: pointer; font-size: 14px; white-space: nowrap; }
+.ctl:hover { border-color: var(--faint); }
+.ctl[aria-expanded="true"] { border-color: var(--navy); box-shadow: 0 0 0 3px var(--tint); }
+.ctl svg { width: 14px; height: 14px; flex: none; color: var(--muted); }
+.ctl[disabled] { opacity: .6; cursor: progress; }
+.spin svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.pop { position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.06); }
+.picker { width: 300px; max-height: min(70vh, 520px); display: grid; grid-template-rows: auto 1fr auto; }
+.picker .ph { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 8px; font-weight: 600; }
+.picker .ph button { border: 0; background: none; color: var(--cyan-ink); font-size: 13px; cursor: pointer; font-weight: 500; }
+.picker .list { overflow-y: auto; padding: 0 8px 8px; }
+.picker label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.picker label:hover { background: var(--soft); }
+.picker input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--navy); margin: 0; }
+.picker .pf { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid var(--line); }
+.btn { border: 1px solid var(--line-2); background: #fff; border-radius: 980px; padding: 6px 16px; font-size: 14px; cursor: pointer; }
+.btn.dark { background: var(--navy); border-color: var(--navy); color: #fff; }
 .sep { flex: none; width: 1px; height: 20px; background: var(--line); }
 .fresh { margin-left: auto; flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
 .mobile-tabs { display: none; }
@@ -91,9 +109,10 @@ h2 span { font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing
 .panel { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #fff; min-width: 0; }
 .scroll { overflow-x: auto; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
-th, td { padding: 9px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th, td { padding: 9px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+thead th { white-space: normal; min-width: 52px; line-height: 1.25; }
 thead th { font-weight: 500; color: var(--muted); font-size: 12px; background: var(--soft); vertical-align: bottom; }
-th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: #fff; min-width: 130px; box-shadow: 1px 0 0 var(--line); }
+th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: #fff; min-width: 120px; box-shadow: 1px 0 0 var(--line); }
 thead th:first-child { background: var(--soft); }
 tbody tr:hover td { background: #FAFAFC; }
 tr.total td { font-weight: 600; background: var(--soft) !important; }
@@ -193,9 +212,11 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
     const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(256, 268) }, k, b.slice(268));
     const data = JSON.parse(await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
     data.user = inner.name;
+    if (entry.dispatch) try { DISPATCH = new TextDecoder().decode(await crypto.subtle.decrypt({ name: "RSA-OAEP" }, pk, b64(entry.dispatch))); } catch (e) {}
     return data;
   }
   const showGate = () => { $("#gate").hidden = false; $("#app").hidden = true; $("#user").focus(); };
+  let DISPATCH = null;   // corporate only: a GitHub token that can only start the refresh run
   let SESS = null;   // {u, k} kept in memory so the page can pull fresh data every few minutes
 
   $("#signin").addEventListener("submit", async (e) => {
@@ -225,7 +246,7 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
   // the data is rebuilt every 15 minutes; check for a newer copy every 5
   setInterval(async () => {
     if (!SESS || document.hidden) return;
-    try { const d = await unlock((await users())[SESS.u], b64(SESS.k)); if (d.generated !== D.generated) { D = d; render(); } } catch (e) {}
+    try { if (!REFRESH.busy && await reloadData()) render(); } catch (e) {}
   }, 5 * 60 * 1000);
 
   // ---------- helpers ----------
@@ -247,9 +268,61 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
   const fmt = (s, o) => D8(s).toLocaleDateString("en-IN", Object.assign({ day: "numeric", month: "short", timeZone: "UTC" }, o || {}));
   const COLORS = ["#041E42", "#00A3E0", "#D9A21B", "#1A7F37", "#C4302B", "#7B4FC4", "#E0730F", "#5C6B7A", "#0E8C8C", "#B33B86", "#8A6D3B", "#3A5BC7", "#6E6E73"];
 
+  const ICON = {
+    down: '<path d="m4 6 4 4 4-4"/>',
+    refresh: '<path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 2.5v3h-3"/>',
+  };
+  function svgIcon(path) { const e = document.createElementNS("http://www.w3.org/2000/svg", "svg"); e.setAttribute("viewBox", "0 0 16 16"); e.setAttribute("fill", "none"); e.setAttribute("stroke", "currentColor"); e.setAttribute("stroke-width", "1.6"); e.setAttribute("stroke-linecap", "round"); e.setAttribute("stroke-linejoin", "round"); e.innerHTML = path; return e; }
+
+  // ---------- campus picker (several at once) ----------
+  let POP = null;
+  function closePop() { if (!POP) return; POP.el.remove(); POP.anchor.setAttribute("aria-expanded", "false"); POP = null; }
+  document.addEventListener("mousedown", (e) => { if (POP && !POP.el.contains(e.target) && !POP.anchor.contains(e.target)) closePop(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
+  function picker(anchor) {
+    if (POP) { closePop(); return; }
+    const pick = new Set(S.campuses.size ? S.campuses : D.campuses.map((_, i) => i));
+    const order = D.campuses.map((c, i) => i).sort((a, b) => short(D.campuses[a]).localeCompare(short(D.campuses[b])));
+    const boxes = order.map((i) => { const cb = h("input", { type: "checkbox" }); cb.checked = pick.has(i); cb.onchange = () => { cb.checked ? pick.add(i) : pick.delete(i); }; return [i, cb]; });
+    const setAll = (on) => boxes.forEach(([i, cb]) => { cb.checked = on; on ? pick.add(i) : pick.delete(i); });
+    const el = h("div", { class: "pop picker", role: "dialog", "aria-label": "Campuses" },
+      h("div", { class: "ph" }, h("span", null, "Campuses"), h("span", null, h("button", { onclick: () => setAll(true) }, "All"), " ", h("button", { onclick: () => setAll(false) }, "None"))),
+      h("div", { class: "list" }, boxes.map(([i, cb]) => h("label", null, cb, short(D.campuses[i])))),
+      h("div", { class: "pf" }, h("button", { class: "btn", onclick: closePop }, "Cancel"),
+        h("button", { class: "btn dark", onclick: () => { S.campuses = pick.size === D.campuses.length || !pick.size ? new Set() : pick; S.person = "all"; closePop(); render(); } }, "Show")));
+    document.body.append(el);
+    const r = anchor.getBoundingClientRect();
+    el.style.top = r.bottom + 8 + "px"; el.style.left = Math.max(8, Math.min(r.left, innerWidth - el.offsetWidth - 8)) + "px";
+    anchor.setAttribute("aria-expanded", "true"); POP = { el, anchor };
+  }
+
+  // ---------- refresh: corporate starts a new CRM pull; everyone gets the newest copy as soon as it is published ----------
+  const REFRESH = { busy: false, note: null };
+  const REPO = "gemseducationindia/gems-team-productivity";
+  async function reloadData() { const d = await unlock((await users())[SESS.u], b64(SESS.k)); const changed = d.generated !== D.generated; D = d; return changed; }
+  async function refreshNow() {
+    if (REFRESH.busy || !SESS) return;
+    REFRESH.busy = true; REFRESH.note = null; bar();
+    try {
+      if (DISPATCH) {
+        const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/refresh.yml/dispatches`, {
+          method: "POST", headers: { Authorization: "Bearer " + DISPATCH, Accept: "application/vnd.github+json" }, body: JSON.stringify({ ref: "main" }) });
+        if (!r.ok) throw new Error("dispatch " + r.status);
+        REFRESH.note = "Pulling from the CRM, about a minute…"; bar();
+        for (let i = 0; i < 24; i++) { await new Promise((ok) => setTimeout(ok, 10000)); if (await reloadData()) { REFRESH.note = null; break; } }
+        if (REFRESH.note) REFRESH.note = "Still running, the page will update by itself";
+      } else {
+        REFRESH.note = (await reloadData()) ? null : "Already the latest copy";
+      }
+    } catch (e) { REFRESH.note = "Couldn't refresh right now, try again in a minute"; }
+    REFRESH.busy = false; render();
+    if (REFRESH.note) setTimeout(() => { REFRESH.note = null; bar(); }, 8000);
+  }
+
   // ---------- state ----------
   let D = null;
-  const S = { tab: "central", period: "month", campus: "all", person: "all" };
+  const S = { tab: "central", period: "month", campuses: new Set(), person: "all" };   // campuses: empty = all
+  const inCampus = (c) => !S.campuses.size || S.campuses.has(c);
   const PERIODS = [["today", "Today"], ["yesterday", "Yesterday"], ["7", "Last 7 days"], ["month", "This month"], ["lastmonth", "Last month"], ["all", "All time"]];
   function range() {
     const t = D.today;
@@ -280,19 +353,20 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
 
   function bar() {
     const team = S.tab === "central" ? "c" : "s";
-    const people = D.people.map((p, i) => [p, i]).filter(([p]) => p.t === team && (team === "c" || S.campus === "all" || p.c === +S.campus));
+    const people = D.people.map((p, i) => [p, i]).filter(([p]) => p.t === team && (team === "c" || inCampus(p.c)));
     const kids = [h("div", { class: "seg", role: "group", "aria-label": "Period" },
       PERIODS.map(([k, label]) => h("button", { "aria-pressed": String(S.period === k), onclick: () => { S.period = k; render(); } }, label)))];
     if (team === "s" && D.campuses.length > 1) {
-      kids.push(h("span", { class: "sep" }), h("select", { class: "sel", "aria-label": "Campus", onchange: (e) => { S.campus = e.target.value; S.person = "all"; render(); } },
-        h("option", { value: "all", selected: S.campus === "all" }, "All campuses"),
-        D.campuses.map((c, i) => h("option", { value: String(i), selected: S.campus === String(i) }, short(c)))));
+      const label = !S.campuses.size ? "All campuses" : S.campuses.size === 1 ? short(D.campuses[[...S.campuses][0]]) : S.campuses.size + " campuses";
+      kids.push(h("span", { class: "sep" }), h("button", { class: "ctl", "aria-haspopup": "dialog", "aria-expanded": "false", onclick: (e) => picker(e.currentTarget) },
+        h("span", null, label), svgIcon(ICON.down)));
     }
     kids.push(h("select", { class: "sel", "aria-label": "Counsellor", onchange: (e) => { S.person = e.target.value; render(); } },
       h("option", { value: "all", selected: S.person === "all" }, "All counsellors"),
-      people.map(([p, i]) => h("option", { value: String(i), selected: S.person === String(i) }, p.n + (team === "s" && S.campus === "all" ? " · " + short(D.campuses[p.c]) : "")))));
+      people.map(([p, i]) => h("option", { value: String(i), selected: S.person === String(i) }, p.n + (team === "s" && S.campuses.size !== 1 ? " · " + short(D.campuses[p.c]) : "")))));
     const g = D.generated;
-    kids.push(h("span", { class: "fresh" }, "Updated " + fmt(g.slice(0, 10)) + ", " + g.slice(11, 16) + " IST"));
+    kids.push(h("span", { class: "fresh", id: "fresh" }, REFRESH.note || "Updated " + (g.slice(0, 10) === D.today ? "" : fmt(g.slice(0, 10)) + ", ") + g.slice(11, 16)),
+      h("button", { class: "ctl" + (REFRESH.busy ? " spin" : ""), disabled: REFRESH.busy, title: "Pull the latest numbers from the CRM", onclick: refreshNow }, svgIcon(ICON.refresh), REFRESH.busy ? "Refreshing…" : "Refresh"));
     $("#bar").replaceChildren(...kids);
   }
 
@@ -300,9 +374,11 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
   // calling + visits for a set of people over the period; days = completed calling days (before today, with dials)
   function calling(set, a, b) {
     const r = { dials: 0, connects: 0, talk: 0, fdials: 0, ftalk: 0, days: new Set(), sched: 0, done: 0 };
-    for (const [d, p, dials, conn, talk] of D.days) {
+    const nums = new Set();   // distinct numbers dialled = leads called
+    for (const [d, p, dials, conn, talk, called] of D.days) {
       if (!set.has(p) || d < a || d > b) continue;
       r.dials += dials; r.connects += conn; r.talk += talk;
+      for (const n of called || []) nums.add(n);
       if (d < D.today) { r.fdials += dials; r.ftalk += talk; if (dials > 0) r.days.add(d); }
     }
     for (const [s, dn, owners] of (S.tab === "central" ? D.cvis : D.svis)) {
@@ -310,7 +386,7 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
       if (s && s >= a && s <= b) r.sched += n;
       if (dn && dn >= a && dn <= b) r.done += n;
     }
-    r.nd = r.days.size;
+    r.nd = r.days.size; r.leads = nums.size;
     return r;
   }
   // lead book right now: flags 1 = 2+ owners, 2 = untouched, 4 = visit booked, 8 = visit completed, 16 = owned only by the team
@@ -335,7 +411,7 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
     // [[label or null, [[name, person idx], ...]], ...] for the current tab and filters
     const team = S.tab === "central" ? "c" : "s";
     let ps = D.people.map((p, i) => [p, i]).filter(([p]) => p.t === team);
-    if (team === "s" && S.campus !== "all") ps = ps.filter(([p]) => p.c === +S.campus);
+    if (team === "s") ps = ps.filter(([p]) => inCampus(p.c));
     if (S.person !== "all") ps = ps.filter(([, i]) => i === +S.person);
     if (team === "c") return [[null, ps.map(([p, i]) => [p.n, i])]];
     const by = new Map();
@@ -407,15 +483,16 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
 
     $("#page").replaceChildren(
       h("section", null,
-        h("h2", null, isC ? "Central desk" : S.campus === "all" ? "School teams" : short(D.campuses[+S.campus]), h("span", null, when)),
+        h("h2", null, isC ? "Central desk" : S.campuses.size === 1 ? short(D.campuses[[...S.campuses][0]]) : S.campuses.size ? [...S.campuses].map((c) => short(D.campuses[c])).join(", ") : "School teams", h("span", null, when)),
         h("div", { class: "kpis" },
           kpi("Dials", int(tot.dials)), kpi("Connects", int(tot.connects)), kpi("Connect rate", pct(tot.connects, tot.dials)),
           kpi("Talk time", hm(tot.talk)), kpi("Visits scheduled", int(tot.sched)), kpi("Visits done", int(tot.done)))),
       h("section", null,
         h("h2", null, "Productivity by counsellor", h("span", null, "per-day figures average over completed calling days")),
-        h("div", { class: "panel" }, table(["Days", "Dials", "Dials / day", "Connect rate", "Talk time", "Talk time / day", "Visits sched.", "Visits done"], gs, (set) => {
+        h("div", { class: "panel" }, table(["Days", "Dials", "Dials / day", "Leads called", "Avg dials / lead", "Avg connects / lead", "Connect rate", "Talk time", "Talk time / day", "Visits sched.", "Visits done"], gs, (set) => {
           const r = calling(set, a, b);
-          return [cell(r.nd ? int(r.nd) : null), cell(int(r.dials)), cell(r.nd ? (r.fdials / r.nd).toFixed(1) : null), cell(pct(r.connects, r.dials)),
+          return [cell(r.nd ? int(r.nd) : null), cell(int(r.dials)), cell(r.nd ? (r.fdials / r.nd).toFixed(1) : null),
+            cell(int(r.leads)), cell(r.leads ? (r.dials / r.leads).toFixed(2) : null), cell(r.leads ? (r.connects / r.leads).toFixed(2) : null), cell(pct(r.connects, r.dials)),
             cell(hm(r.talk)), cell(r.nd ? hm(r.ftalk / r.nd) : null), cell(int(r.sched)), cell(int(r.done))];
         }))),
       h("section", null,
@@ -437,14 +514,14 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
       h("details", { class: "defs" },
         h("summary", null, "How these numbers are counted"),
         h("p", null, h("b", null, "Period"), ": Today is live; Last 7 days includes today. Outgoing calls only. ", h("b", null, "Connect"), " = completed call with talk time; connect rate = connects ÷ dials. ",
-          h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
+          h("b", null, "Leads called"), " = different numbers dialled in the period; ", h("b", null, "avg dials / connects per lead"), " = dials or connects ÷ leads called (the team total counts a lead called by two counsellors once). ", h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
         h("p", null, isC
           ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors counts for both. Calling and visit totals add up the counsellors; lead book totals count each lead once."
           : "School team = everyone with campus access in the CRM, campus managers included (central desk left out). A counsellor is credited for leads where they are the lead owner. Calling and visit totals add up the counsellors; lead book totals count each lead once per campus."),
         h("p", null, h("b", null, "Visits scheduled"), " are dated by the first visit booked on the lead, ", h("b", null, "visits done"), " by the visit-done date. ",
           h("b", null, "Lead book"), " and ", h("b", null, "status"), " tables show open assignments right now and ignore the period. 2+ owners = more than one person assigned. Team only = every owner is on ",
           isC ? "the central desk." : "that campus team.", " Untouched = status New and the number was never dialled."),
-        h("p", null, "Data comes live from the GEMS CRM and refreshes every 15 minutes; this page picks up a new copy by itself while it is open."))
+        h("p", null, "Data comes live from the GEMS CRM and refreshes every hour; Refresh pulls it again now. The page picks up a new copy by itself while it is open."))
     );
   }
 })();
