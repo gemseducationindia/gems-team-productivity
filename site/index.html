@@ -136,6 +136,7 @@ details.defs summary { cursor: pointer; color: var(--ink-2); font-weight: 500; f
 details.defs p { margin: 10px 0 0; max-width: 120ch; }
 details.defs b { color: var(--ink-2); font-weight: 600; }
 #calls { display: block; width: 100%; height: calc(100vh - var(--top-h, 60px)); border: 0; }
+#calls.pre { position: absolute; left: -10000px; top: 0; visibility: hidden; }   /* loading in the background, laid out at full size */
 table.biz { font-size: 12.5px; }
 table.biz th, table.biz td { padding: 8px 5px; }
 table.biz thead th { min-width: 0; font-size: 11.5px; }
@@ -354,7 +355,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
     $("#whoName").textContent = D.user;
     if (D.role !== "corporate") S.tab = "school";
     render();
-    callAuditKeys().then((p) => { CALLS = p; if (p) tabs(); });
+    callAuditKeys().then((p) => { CALLS = p; if (p) { tabs(); preloadCalls(); } });
   }
 
   // ---------- call audit: the call audit site seals this login's keys to its key pair (p/<id>.enc) and runs in a frame ----------
@@ -368,11 +369,18 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
       return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(256, 268) }, k, b.slice(268))));
     } catch (e) { return null; }
   }
+  function preloadCalls() {
+    // start the call audit straight after sign-in, off screen, so the tab is ready when it is clicked
+    const f = $("#calls");
+    if (f.src) return;
+    document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
+    window.gemsCallAuditPayload = CALLS; f.classList.add("pre"); f.hidden = false; f.src = "../gems-call-audit/?embed=1";
+  }
   function showCalls() {
     const f = $("#calls");
-    $("#page").hidden = true; $("#bar").hidden = true; f.hidden = false;
+    preloadCalls();
+    $("#page").hidden = true; $("#bar").hidden = true; f.classList.remove("pre"); f.hidden = false;
     document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
-    if (!f.src) { window.gemsCallAuditPayload = CALLS; f.src = "../gems-call-audit/?embed=1"; }
   }
 
   function tabs() {
@@ -650,7 +658,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
 
   function render() {
     if (S.tab === "calls") { tabs(); return; }
-    $("#page").hidden = false; $("#bar").hidden = false; $("#calls").hidden = true;
+    $("#page").hidden = false; $("#bar").hidden = false; if (!$("#calls").classList.contains("pre")) $("#calls").hidden = true;
     tabs(); bar();
     if (S.tab === "business") return renderBiz();
     const [a, b] = range();
