@@ -141,7 +141,7 @@ for l in leads:
     if c and not c.lower().endswith("india"):
         mine = ([p for cc, p in school_of.get(owner, []) if cc == c]
                 or sorted(p for u in todo for cc, p in school_of.get(u, []) if cc == c)   # owner not on the team: its campus assignees
-                or [other("Central desk leads" if ({owner} | todo) & central_set else "Unassigned leads", c)]
+                or [other("Central desk leads" if ({owner} | todo) & central_set else "Unassigned leads", c)])
         team = {u for u, cc in school if cc == c}
         team_only = all(u in team for u in todo)
         sbook.append([status_of(l["status"]), mine, flags | (16 if team_only else 0)])
