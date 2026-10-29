@@ -1,14 +1,17 @@
-# GEMS team productivity
+# GEMS Productivity & Business Dashboard
 
-Central desk and school team productivity (calling, visits, lead book, lead status) from the live GEMS CRM, the same numbers as
-the Insights dashboards Central Desk Productivity and School Teams Productivity. Corporate sees both teams; each school
-manager's login sees only their campuses: https://gemseducationindia.github.io/gems-team-productivity/
+Central desk and school team productivity (calling, visits, lead book, lead status) and the CFO business dashboard (leads,
+visits, new admissions, capacity, revenue, discount, billing by campus and grade) from the live GEMS CRM, the same numbers as
+the Insights dashboards Central Desk Productivity, School Teams Productivity and Business Dashboard. Corporate sees everything;
+each school manager's login sees only the School tab for their campuses: https://gemseducationindia.github.io/gems-team-productivity/
 
 **Refreshed by a Claude scheduled task** that runs `bash refresh.sh` (build, encrypt, force-push `gh-pages`). `.github/workflows/refresh.yml` is a manual backup that needs the `CRM_TOKEN` secret.
 
 - `build.py` pulls users, campus permissions, outgoing calls, leads, open assignments and visits from the CRM and writes
   `productivity.json` (first names and counts only, no lead names or numbers). The rules are at the top of the file.
-- `publish.py productivity.json _site` copies `site/` and writes one encrypted file per login, holding only that login's data.
+- `business.py` pulls leads, visits, new admissions and their fee rows and writes `business.json` (Business tab, Corporate only).
+  Capacity and carry forward are read from the capacities CTE in Insights query `br59hj57ib`, so edit them there.
+- `publish.py productivity.json _site business.json` copies `site/` and writes one encrypted file per login, holding only that login's data.
   The workflow force-pushes the result to the `gh-pages` branch as a single commit.
 - `logins.py` adds or removes logins (see below). Logins are in `logins.json`: each has an RSA key pair whose private half is
   encrypted with the password, so the refresh job never needs passwords and adding a login needs no secret.

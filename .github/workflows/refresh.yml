@@ -16,7 +16,9 @@ jobs:
       - run: pip install cryptography==43.0.3
       - run: python build.py productivity.json
         env: {CRM_TOKEN: "${{ secrets.CRM_TOKEN }}"}
-      - run: python publish.py productivity.json _site
+      - run: python business.py business.json
+        env: {CRM_TOKEN: "${{ secrets.CRM_TOKEN }}"}
+      - run: python publish.py productivity.json _site business.json
       - name: Publish to gh-pages
         run: |
           cd _site
