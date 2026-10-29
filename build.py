@@ -7,10 +7,11 @@ Same rules as the Insights dashboards it replaces (Central Desk Productivity, Sc
   managers included, as in Insights). They are credited for leads where they are the lead owner, once per campus they cover.
 - Dial = outgoing call. Connect = status Completed with duration > 0. Talk time = all outgoing call durations.
 - Duplicates and test leads ('test' in the lead name) are left out, as on the Business tab.
-- School credit is per campus of the lead: a school counsellor is credited for a lead they own at a campus they cover. A school
+- School credit is per campus of the lead: a school counsellor is credited for a lead they own at a campus they cover, or, when
+  the owner isn't on that campus team, for a lead they are assigned to (open ToDo) there. A school
   person covering several campuses has each call put under the campus of the lead dialled, so nothing is counted twice.
-- Every lead with a campus belongs to that campus on the School tab, so a campus adds up to its Business tab numbers. Leads the
-  campus team doesn't own go on two extra rows per campus: "Central desk leads" (owner or open assignee on the central desk)
+- Every lead with a campus belongs to that campus on the School tab, so a campus adds up to its Business tab numbers. Leads nobody
+  on the campus team owns or is assigned to go on two extra rows per campus: "Central desk leads" (owner or open assignee on the central desk)
   and "Unassigned leads" (no owner, or someone outside the campus team).
 - Every total (team, campus, all campuses) counts each lead once.
 - Visit booked = visit_attempts > 0, visit_done_on set, status Visit Scheduled / Visit Done, or converted; dated by the first
@@ -138,7 +139,9 @@ for l in leads:
     # school tab: every lead with a campus, credited to the campus team member who owns it, else a Central desk / Unassigned row
     c = l["territory"]
     if c and not c.lower().endswith("india"):
-        mine = [p for cc, p in school_of.get(owner, []) if cc == c] or [other("Central desk leads" if ({owner} | todo) & central_set else "Unassigned leads", c)]
+        mine = ([p for cc, p in school_of.get(owner, []) if cc == c]
+                or sorted(p for u in todo for cc, p in school_of.get(u, []) if cc == c)   # owner not on the team: its campus assignees
+                or [other("Central desk leads" if ({owner} | todo) & central_set else "Unassigned leads", c)]
         team = {u for u, cc in school if cc == c}
         team_only = all(u in team for u in todo)
         sbook.append([status_of(l["status"]), mine, flags | (16 if team_only else 0)])
