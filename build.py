@@ -9,6 +9,9 @@ Same rules as the Insights dashboards it replaces (Central Desk Productivity, Sc
 - Duplicates and test leads ('test' in the lead name) are left out, as on the Business tab.
 - School credit is per campus of the lead: a school counsellor is credited for a lead they own at a campus they cover. A school
   person covering several campuses has each call put under the campus of the lead dialled, so nothing is counted twice.
+- Every lead with a campus belongs to that campus on the School tab, so a campus adds up to its Business tab numbers. Leads the
+  campus team doesn't own go on two extra rows per campus: "Central desk leads" (owner or open assignee on the central desk)
+  and "Unassigned leads" (no owner, or someone outside the campus team).
 - Every total (team, campus, all campuses) counts each lead once.
 - Visit booked = visit_attempts > 0, visit_done_on set, status Visit Scheduled / Visit Done, or converted; dated by the first
   GEMS Visit, else visit_done_on, else modified. Visit done = visit_done_on set, status Visit Done, or converted; dated by
@@ -107,6 +110,14 @@ first_visit = {}
 for v in get("GEMS Visit", ["enquiry", "creation"]):
     if v["enquiry"] and (v["enquiry"] not in first_visit or v["creation"] < first_visit[v["enquiry"]]): first_visit[v["enquiry"]] = v["creation"]
 
+def other(label, campus):
+    # a per-campus row for campus leads the campus team doesn't own
+    if campus not in campuses: campuses.append(campus)
+    key = ("x", label, campus)
+    if key not in pidx: pidx[key] = len(people); people.append({"n": label, "t": "s", "c": campuses.index(campus), "x": 1})
+    return pidx[key]
+
+
 STATUS = ["New", "Contacted", "Visit Scheduled", "Visit Done", "Lost", "Junk"]
 status_of = lambda s: STATUS.index(s) if s in STATUS else len(STATUS)   # anything else = "Other"
 cbook, sbook, cvis, svis = [], [], [], []
@@ -124,13 +135,14 @@ for l in leads:
         team_only = all(u in central_set for u in todo)
         cbook.append([status_of(l["status"]), cown, flags | (16 if team_only else 0)])
         if booked: cvis.append([sched, done, cown])
-    # school team: lead owner, at the lead's campus if they cover it
-    for c, p in school_of.get(owner, []):
-        if c != l["territory"]: continue
+    # school tab: every lead with a campus, credited to the campus team member who owns it, else a Central desk / Unassigned row
+    c = l["territory"]
+    if c and not c.lower().endswith("india"):
+        mine = [p for cc, p in school_of.get(owner, []) if cc == c] or [other("Central desk leads" if ({owner} | todo) & central_set else "Unassigned leads", c)]
         team = {u for u, cc in school if cc == c}
         team_only = all(u in team for u in todo)
-        sbook.append([status_of(l["status"]), [p], flags | (16 if team_only else 0)])
-        if booked: svis.append([sched, done, [p]])
+        sbook.append([status_of(l["status"]), mine, flags | (16 if team_only else 0)])
+        if booked: svis.append([sched, done, mine])
 
 now = datetime.now(IST)
 out = {"generated": now.strftime("%Y-%m-%dT%H:%M"), "today": now.strftime("%Y-%m-%d"), "status": STATUS + ["Other"],

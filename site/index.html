@@ -460,8 +460,9 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
     const all = new Set();
     for (const [label, ps] of gs) {
       if (label && gs.length > 1) body.push(h("tr", { class: "grp" }, h("td", { colspan: cols.length + 1 }, label)));
-      for (const [n, i] of ps.sort((a, b) => a[0].localeCompare(b[0]))) { body.push(h("tr", null, h("td", null, n), row(new Set([i])))); all.add(i); }
-      if (ps.length > 1) body.push(h("tr", { class: "total" }, h("td", null, label && gs.length > 1 ? label + " total" : "Team total"), row(new Set(ps.map(([, i]) => i)))));
+      // counsellors by name, then the campus's Central desk / Unassigned rows
+      for (const [n, i] of ps.sort((a, b) => (D.people[a[1]].x || 0) - (D.people[b[1]].x || 0) || a[0].localeCompare(b[0]))) { body.push(h("tr", null, h("td", null, n), row(new Set([i])))); all.add(i); }
+      if (ps.length > 1) body.push(h("tr", { class: "total" }, h("td", null, label && gs.length > 1 ? label + " total" : S.tab === "school" ? "Campus total" : "Team total"), row(new Set(ps.map(([, i]) => i)))));
     }
     if (gs.length > 1) body.push(h("tr", { class: "grand" }, h("td", null, "All campuses"), row(all)));
     if (!body.length) return h("div", { class: "empty" }, "No counsellors to show.");
@@ -471,6 +472,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
   function lineChart(gs, a, b) {
     // dials per day, one line per counsellor (per campus when many counsellors are shown)
     const dates = []; for (let d = a; d <= b; d = shift(d, 1)) dates.push(d);
+    gs = gs.map(([label, ps]) => [label, ps.filter(([, i]) => !D.people[i].x)]).filter(([, ps]) => ps.length);
     let series = gs.flatMap(([, ps]) => ps.map(([n, i]) => [n, new Set([i])]));
     if (series.length > 8 && gs.length > 1) series = gs.map(([label, ps]) => [label, new Set(ps.map(([, i]) => i))]);
     const idx = new Map(dates.map((d, k) => [d, k]));
@@ -693,7 +695,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
           h("b", null, "Leads called"), " = different numbers dialled in the period; ", h("b", null, "avg dials / connects per lead"), " = dials or connects ÷ leads called (the team total counts a lead called by two counsellors once). ", h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
         h("p", null, isC
           ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors shows on both their rows but counts once in every total."
-          : "School team = everyone with campus access in the CRM, campus managers included (central desk left out). A counsellor is credited for leads they own at their campus; every total counts each lead once. A manager covering two campuses has each call under the campus of the lead dialled."),
+          : "School team = everyone with campus access in the CRM, campus managers included (central desk left out). A counsellor is credited for leads they own at their campus. Every lead with a campus counts there: leads the campus team doesn't own sit on the campus's Central desk leads and Unassigned leads rows, so each campus total matches the Business tab. Every total counts each lead once. A manager covering two campuses has each call under the campus of the lead dialled."),
         h("p", null, h("b", null, "Visits scheduled"), " are dated by the first visit booked on the lead, ", h("b", null, "visits done"), " by the visit-done date. ",
           h("b", null, "Lead book"), " and ", h("b", null, "status"), " tables show open assignments right now and ignore the period. 2+ owners = more than one person assigned. Team only = every owner is on ",
           isC ? "the central desk." : "that campus team.", " Untouched = status New and the number was never dialled. Duplicates and test leads are left out, and visits use the same rules as the Business tab."),
