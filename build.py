@@ -17,7 +17,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 HOST = "https://gemseducation.m.frappe.cloud"
-TOKEN = os.environ.get("CRM_TOKEN") or f"{os.environ['FRAPPE_API_KEY']}:{os.environ['FRAPPE_API_SECRET']}"
+TOKEN = (os.environ.get("CRM_TOKEN") or f"{os.environ['FRAPPE_API_KEY']}:{os.environ['FRAPPE_API_SECRET']}").strip()
 IST = timezone(timedelta(hours=5, minutes=30))
 
 
@@ -29,7 +29,7 @@ def get(doctype, fields, filters=None):
         url = f"{HOST}/api/resource/{urllib.parse.quote(doctype)}?{urllib.parse.urlencode(q)}"
         for attempt in range(4):
             try:
-                req = urllib.request.Request(url, headers={"Authorization": f"token {TOKEN}"})
+                req = urllib.request.Request(url, headers={"Authorization": TOKEN if TOKEN.startswith("token ") else f"token {TOKEN}"})
                 with urllib.request.urlopen(req, timeout=120) as r: page = json.load(r)["data"]
                 break
             except Exception:
