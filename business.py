@@ -4,7 +4,7 @@ Same rules as the Insights Business Dashboard it replaces (frj4ta3uje + driqlh66
 - Leads: not duplicate, campus set (not the India root), no 'test' in the lead name. Dated by creation; grade = grade applied
   ('Not set' when blank).
 - Visit booked = visit_attempts > 0, visit_done_on set, status Visit Scheduled / Visit Done, or converted; dated by the first
-  GEMS Visit, else visit_done_on, else modified. Visit done = visit_done_on set, status Visit Done, or converted; dated by
+  GEMS Visit (created on, or its visit date if earlier), else visit_done_on, else modified. Visit done = visit_done_on set, status Visit Done, or converted; dated by
   visit_done_on, else modified.
 - New admission = deal Blocking Fee Paid or Enrolled, not duplicate, no 'test' in name / student / lead name / lost notes.
   Dated by blocking_fee_paid_on, else enrolled_on, else creation. Normal / RTE from admission_type (blank = Normal).
@@ -65,8 +65,10 @@ has_test = lambda *xs: "test" in " ".join(x for x in xs if x is not None).lower(
 caps = [r for r in capacities() if r[0] not in EXCLUDED]
 
 first_visit = {}
-for v in get("GEMS Visit", ["enquiry", "creation"]):
-    if v["enquiry"] and (v["enquiry"] not in first_visit or v["creation"] < first_visit[v["enquiry"]]): first_visit[v["enquiry"]] = v["creation"]
+for v in get("GEMS Visit", ["enquiry", "creation", "scheduled_on"]):
+    # booked when created, or on the visit date for a visit entered after the fact (back-filled walk-ins)
+    t = min(x for x in (v["creation"], v["scheduled_on"]) if x)
+    if v["enquiry"] and (v["enquiry"] not in first_visit or t < first_visit[v["enquiry"]]): first_visit[v["enquiry"]] = t
 
 leads = []
 for l in get("CRM Lead", ["name", "territory", "grade_applied", "creation", "modified", "status", "converted", "visit_attempts",

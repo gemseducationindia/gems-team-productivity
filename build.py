@@ -15,7 +15,7 @@ Same rules as the Insights dashboards it replaces (Central Desk Productivity, Sc
   and "Unassigned leads" (no owner, or someone outside the campus team).
 - Every total (team, campus, all campuses) counts each lead once.
 - Visit booked = visit_attempts > 0, visit_done_on set, status Visit Scheduled / Visit Done, or converted; dated by the first
-  GEMS Visit, else visit_done_on, else modified. Visit done = visit_done_on set, status Visit Done, or converted; dated by
+  GEMS Visit (created on, or its visit date if earlier), else visit_done_on, else modified. Visit done = visit_done_on set, status Visit Done, or converted; dated by
   visit_done_on, else modified. Same rules as the Business tab (business.py).
 - Untouched = status New, the number was never dialled and no call is linked to the lead.
 CRM datetimes are stored in IST, so their date part is the IST date.
@@ -108,8 +108,10 @@ open_owners = defaultdict(set)
 for t in todos:
     if t["allocated_to"]: open_owners[t["reference_name"]].add(t["allocated_to"])
 first_visit = {}
-for v in get("GEMS Visit", ["enquiry", "creation"]):
-    if v["enquiry"] and (v["enquiry"] not in first_visit or v["creation"] < first_visit[v["enquiry"]]): first_visit[v["enquiry"]] = v["creation"]
+for v in get("GEMS Visit", ["enquiry", "creation", "scheduled_on"]):
+    # booked when created, or on the visit date for a visit entered after the fact (back-filled walk-ins)
+    t = min(x for x in (v["creation"], v["scheduled_on"]) if x)
+    if v["enquiry"] and (v["enquiry"] not in first_visit or t < first_visit[v["enquiry"]]): first_visit[v["enquiry"]] = t
 
 def other(label, campus):
     # a per-campus row for campus leads the campus team doesn't own
