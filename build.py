@@ -6,8 +6,13 @@ Same rules as the Insights dashboards it replaces (Central Desk Productivity, Sc
 - School team = enabled users with a CRM Territory User Permission, minus central counsellors and System Managers (campus
   managers included, as in Insights). They are credited for leads where they are the lead owner, once per campus they cover.
 - Dial = outgoing call. Connect = status Completed with duration > 0. Talk time = all outgoing call durations.
-- Team totals add up the counsellors for calling and visits, as Insights does; lead book totals count each lead once.
-- Visit booked = visit_attempts > 0 or visit_done_on set; dated by the first GEMS Visit, else visit_done_on, else modified.
+- Duplicates and test leads ('test' in the lead name) are left out, as on the Business tab.
+- School credit is per campus of the lead: a school counsellor is credited for a lead they own at a campus they cover. A school
+  person covering several campuses has each call put under the campus of the lead dialled, so nothing is counted twice.
+- Every total (team, campus, all campuses) counts each lead once.
+- Visit booked = visit_attempts > 0, visit_done_on set, status Visit Scheduled / Visit Done, or converted; dated by the first
+  GEMS Visit, else visit_done_on, else modified. Visit done = visit_done_on set, status Visit Done, or converted; dated by
+  visit_done_on, else modified. Same rules as the Business tab (business.py).
 - Untouched = status New, the number was never dialled and no call is linked to the lead.
 CRM datetimes are stored in IST, so their date part is the IST date.
 
@@ -63,6 +68,15 @@ school_of = defaultdict(list)          # user -> [(campus, person idx)]
 for u, c in school: school_of[u].append((c, pidx[("s", u, c)]))
 central_set = set(central)
 
+# ---- leads (needed first: a call is placed under the campus of the lead dialled) ----
+has_test = lambda *xs: "test" in " ".join(x for x in xs if x is not None).lower()
+leads = [l for l in get("CRM Lead", ["name", "status", "lead_owner", "visit_attempts", "visit_done_on", "modified", "mobile_digits",
+                                     "territory", "converted", "is_duplicate", "lead_name", "first_name", "last_name"])
+         if not l["is_duplicate"] and not has_test(l["lead_name"], l["first_name"], l["last_name"])]
+campus_of_number = {}
+for l in sorted(leads, key=lambda l: l["modified"]):   # latest lead wins when a number has several
+    if l["mobile_digits"] and l["territory"]: campus_of_number[l["mobile_digits"]] = l["territory"]
+
 # ---- calls: per person per day ----
 calls = get("CRM Call Log", ["caller", "to", "status", "duration", "start_time"], [["type", "=", "Outgoing"]])
 # a lead with any call linked to it (incoming too) is not untouched, as in Insights
@@ -74,14 +88,17 @@ for c in calls:
     dialled.add((c["to"] or "")[-10:])   # RIGHT(to, 10), as in Insights
     d, who = day(c["start_time"]), c["caller"]
     if not d or not who: continue
-    targets = ([pidx[("c", who)]] if who in central_set else []) + [p for _, p in school_of.get(who, [])]
+    mine = school_of.get(who, [])
+    if len(mine) > 1:   # covers several campuses: the campus of the lead dialled, else the first one
+        at = campus_of_number.get((c["to"] or "")[-10:])
+        mine = [x for x in mine if x[0] == at] or mine[:1]
+    targets = ([pidx[("c", who)]] if who in central_set else []) + [p for _, p in mine]
     for p in targets:
         a = agg[(d, p)]; a[0] += 1; a[1] += 1 if c["status"] == "Completed" and (c["duration"] or 0) > 0 else 0; a[2] += int(c["duration"] or 0)
         a[3].add(num_id.setdefault((c["to"] or "")[-10:], len(num_id)))
 days = sorted([d, p, v[0], v[1], v[2], sorted(v[3])] for (d, p), v in agg.items())
 
 # ---- leads, owners and visits ----
-leads = get("CRM Lead", ["name", "status", "lead_owner", "visit_attempts", "visit_done_on", "modified", "mobile_digits"])
 todos = get("ToDo", ["reference_name", "allocated_to"], [["reference_type", "=", "CRM Lead"], ["status", "=", "Open"]])
 open_owners = defaultdict(set)
 for t in todos:
@@ -95,9 +112,9 @@ status_of = lambda s: STATUS.index(s) if s in STATUS else len(STATUS)   # anythi
 cbook, sbook, cvis, svis = [], [], [], []
 for l in leads:
     name, owner, todo = l["name"], l["lead_owner"], open_owners.get(l["name"], set())
-    booked = (l["visit_attempts"] or 0) > 0 or bool(l["visit_done_on"])
+    booked = bool((l["visit_attempts"] or 0) > 0 or l["visit_done_on"] or l["status"] in ("Visit Scheduled", "Visit Done") or l["converted"])
     sched = day(first_visit.get(name) or l["visit_done_on"] or l["modified"]) if booked else None
-    done = day(l["visit_done_on"])
+    done = day(l["visit_done_on"] or l["modified"]) if (l["visit_done_on"] or l["status"] == "Visit Done" or l["converted"]) else None
     untouched = l["status"] == "New" and not (l["mobile_digits"] and l["mobile_digits"] in dialled) and name not in linked
     shared = len(todo) >= 2
     flags = (1 if shared else 0) | (2 if untouched else 0) | (4 if booked else 0) | (8 if done else 0)
@@ -107,8 +124,9 @@ for l in leads:
         team_only = all(u in central_set for u in todo)
         cbook.append([status_of(l["status"]), cown, flags | (16 if team_only else 0)])
         if booked: cvis.append([sched, done, cown])
-    # school team: lead owner only, once per campus they cover
+    # school team: lead owner, at the lead's campus if they cover it
     for c, p in school_of.get(owner, []):
+        if c != l["territory"]: continue
         team = {u for u, cc in school if cc == c}
         team_only = all(u in team for u in todo)
         sbook.append([status_of(l["status"]), [p], flags | (16 if team_only else 0)])

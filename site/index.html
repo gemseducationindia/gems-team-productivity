@@ -415,8 +415,9 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
       for (const n of called || []) nums.add(n);
       if (d < D.today) { r.fdials += dials; r.ftalk += talk; if (dials > 0) r.days.add(d); }
     }
+    if (S.period === "all") { a = "0000-00-00"; b = "9999-99-99"; }   // all time: visits from before the first call too
     for (const [s, dn, owners] of (S.tab === "central" ? D.cvis : D.svis)) {
-      const n = owners.filter((p) => set.has(p)).length;   // team totals add up the counsellors, as Insights does
+      const n = owners.some((p) => set.has(p)) ? 1 : 0;   // each lead once, also in team and campus totals
       if (s && s >= a && s <= b) r.sched += n;
       if (dn && dn >= a && dn <= b) r.done += n;
     }
@@ -691,11 +692,11 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
         h("p", null, h("b", null, "Period"), ": Today is live; Last 7 days includes today. Outgoing calls only. ", h("b", null, "Connect"), " = completed call with talk time; connect rate = connects ÷ dials. ",
           h("b", null, "Leads called"), " = different numbers dialled in the period; ", h("b", null, "avg dials / connects per lead"), " = dials or connects ÷ leads called (the team total counts a lead called by two counsellors once). ", h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
         h("p", null, isC
-          ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors counts for both. Calling and visit totals add up the counsellors; lead book totals count each lead once."
-          : "School team = everyone with campus access in the CRM, campus managers included (central desk left out). A counsellor is credited for leads where they are the lead owner. Calling and visit totals add up the counsellors; lead book totals count each lead once per campus."),
+          ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors shows on both their rows but counts once in every total."
+          : "School team = everyone with campus access in the CRM, campus managers included (central desk left out). A counsellor is credited for leads they own at their campus; every total counts each lead once. A manager covering two campuses has each call under the campus of the lead dialled."),
         h("p", null, h("b", null, "Visits scheduled"), " are dated by the first visit booked on the lead, ", h("b", null, "visits done"), " by the visit-done date. ",
           h("b", null, "Lead book"), " and ", h("b", null, "status"), " tables show open assignments right now and ignore the period. 2+ owners = more than one person assigned. Team only = every owner is on ",
-          isC ? "the central desk." : "that campus team.", " Untouched = status New and the number was never dialled."),
+          isC ? "the central desk." : "that campus team.", " Untouched = status New and the number was never dialled. Duplicates and test leads are left out, and visits use the same rules as the Business tab."),
         h("p", null, "Data comes live from the GEMS CRM and refreshes every hour; Refresh pulls it again now. The page picks up a new copy by itself while it is open."))
     );
   }
