@@ -4,7 +4,7 @@ Central desk and school team productivity (calling, visits, lead book, lead stat
 the Insights dashboards Central Desk Productivity and School Teams Productivity. Corporate sees both teams; each school
 manager's login sees only their campuses: https://gemseducationindia.github.io/gems-team-productivity/
 
-**Refreshes every 15 minutes** (GitHub Actions, `.github/workflows/refresh.yml`), and on every push to main.
+**Refreshed by a Claude scheduled task** that runs `bash refresh.sh` (build, encrypt, force-push `gh-pages`). `.github/workflows/refresh.yml` is a manual backup that needs the `CRM_TOKEN` secret.
 
 - `build.py` pulls users, campus permissions, outgoing calls, leads, open assignments and visits from the CRM and writes
   `productivity.json` (first names and counts only, no lead names or numbers). The rules are at the top of the file.
@@ -18,7 +18,7 @@ manager's login sees only their campuses: https://gemseducationindia.github.io/g
 
     pip install cryptography
     python logins.py add "name@gemsedu.in" "GMS Raipur"                 # several campuses: "GMS Vikhroli, GMS Kalyan"
-    git commit -am "Add login" && git push                              # the push triggers a refresh
+    git commit -am "Add login" && git push && bash refresh.sh
 
 It prints the new password. Use `--password "..."` to choose one, `python logins.py remove "name@gemsedu.in"` to remove a login,
 and `python logins.py add` again with the same name to reset a password.

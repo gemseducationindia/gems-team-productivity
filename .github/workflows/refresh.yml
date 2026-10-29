@@ -1,9 +1,7 @@
-# Every 15 minutes: pull the live CRM, encrypt the numbers once per login and publish the site to the gh-pages branch.
-# GitHub can start scheduled runs a few minutes late when it is busy. Run it by hand from the Actions tab any time.
+# Backup only: the refresh is run by a Claude scheduled task (refresh.sh). Run this by hand from the Actions tab if needed;
+# it needs the CRM_TOKEN secret.
 name: Refresh
 on:
-  schedule: [{cron: "*/15 * * * *"}]
-  push: {branches: [main]}
   workflow_dispatch:
 concurrency: {group: refresh, cancel-in-progress: false}
 permissions: {contents: write}

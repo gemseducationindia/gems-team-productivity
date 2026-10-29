@@ -3,9 +3,10 @@
 Same rules as the Insights dashboards it replaces (Central Desk Productivity, School Teams Productivity):
 - Central desk = enabled users with role 'GEMS Central Counsellor', minus System Managers. They are credited for leads they own
   (lead owner) or are assigned to (open ToDo).
-- School team = enabled users with a CRM Territory User Permission, minus central counsellors, System Managers and Sales Managers
-  (managers are never assigned leads and stay out of the numbers). They are credited for leads where they are the lead owner.
+- School team = enabled users with a CRM Territory User Permission, minus central counsellors and System Managers (campus
+  managers included, as in Insights). They are credited for leads where they are the lead owner, once per campus they cover.
 - Dial = outgoing call. Connect = status Completed with duration > 0. Talk time = all outgoing call durations.
+- Team totals add up the counsellors for calling and visits, as Insights does; lead book totals count each lead once.
 - Visit booked = visit_attempts > 0 or visit_done_on set; dated by the first GEMS Visit, else visit_done_on, else modified.
 - Untouched = status New, the number was never dialled and no call is linked to the lead.
 CRM datetimes are stored in IST, so their date part is the IST date.
@@ -41,18 +42,17 @@ def get(doctype, fields, filters=None):
 
 
 day = lambda s: s[:10] if s else None
-digits = lambda s: re.sub(r"\D", "", s or "")[-10:]
 
 users = get("User", ["name", "full_name", "enabled", "roles.role"])
 roles, full = defaultdict(set), {}
 for u in users:
     if u["enabled"]: roles[u["name"]].add(u.get("role")); full[u["name"]] = u["full_name"] or u["name"]
-first = lambda uid: full[uid].split(" ")[0].split(".")[0]
+first = lambda uid: full[uid].split(" ")[0]   # first word of the full name, as Insights shows it
 
 central = sorted(u for u, r in roles.items() if "GEMS Central Counsellor" in r and "System Manager" not in r)
 perms = get("User Permission", ["user", "for_value"], [["allow", "=", "CRM Territory"]])
 school = sorted({(p["user"], p["for_value"]) for p in perms if p["user"] in roles
-                 and not roles[p["user"]] & {"GEMS Central Counsellor", "System Manager", "Sales Manager"}})
+                 and not roles[p["user"]] & {"GEMS Central Counsellor", "System Manager"}})
 campuses = sorted({c for _, c in school} | {p["for_value"] for p in perms})
 
 # people: one row per central counsellor, and one per (school counsellor, campus)
@@ -64,13 +64,13 @@ for u, c in school: school_of[u].append((c, pidx[("s", u, c)]))
 central_set = set(central)
 
 # ---- calls: per person per day ----
-calls = get("CRM Call Log", ["caller", "to", "status", "duration", "start_time", "reference_doctype", "reference_docname"],
-            [["type", "=", "Outgoing"]])
-dialled, linked = set(), set()
+calls = get("CRM Call Log", ["caller", "to", "status", "duration", "start_time"], [["type", "=", "Outgoing"]])
+# a lead with any call linked to it (incoming too) is not untouched, as in Insights
+linked = {c["reference_docname"] for c in get("CRM Call Log", ["reference_docname"], [["reference_doctype", "=", "CRM Lead"], ["reference_docname", "is", "set"]])}
+dialled = set()
 agg = defaultdict(lambda: [0, 0, 0])   # (date, person) -> dials, connects, talk seconds
 for c in calls:
-    dialled.add(digits(c["to"]))
-    if c.get("reference_doctype") == "CRM Lead" and c.get("reference_docname"): linked.add(c["reference_docname"])
+    dialled.add((c["to"] or "")[-10:])   # RIGHT(to, 10), as in Insights
     d, who = day(c["start_time"]), c["caller"]
     if not d or not who: continue
     targets = ([pidx[("c", who)]] if who in central_set else []) + [p for _, p in school_of.get(who, [])]

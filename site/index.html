@@ -306,9 +306,9 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
       if (d < D.today) { r.fdials += dials; r.ftalk += talk; if (dials > 0) r.days.add(d); }
     }
     for (const [s, dn, owners] of (S.tab === "central" ? D.cvis : D.svis)) {
-      if (!owners.some((p) => set.has(p))) continue;   // each lead counted once for a team
-      if (s && s >= a && s <= b) r.sched++;
-      if (dn && dn >= a && dn <= b) r.done++;
+      const n = owners.filter((p) => set.has(p)).length;   // team totals add up the counsellors, as Insights does
+      if (s && s >= a && s <= b) r.sched += n;
+      if (dn && dn >= a && dn <= b) r.done += n;
     }
     r.nd = r.days.size;
     return r;
@@ -439,8 +439,8 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
         h("p", null, h("b", null, "Period"), ": Today is live; Last 7 days includes today. Outgoing calls only. ", h("b", null, "Connect"), " = completed call with talk time; connect rate = connects ÷ dials. ",
           h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
         h("p", null, isC
-          ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors counts for both; the Team total counts each lead once."
-          : "School team = counsellors with campus access in the CRM (central desk and managers left out). A counsellor is credited for leads where they are the lead owner; each campus total counts each lead once."),
+          ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors counts for both. Calling and visit totals add up the counsellors; lead book totals count each lead once."
+          : "School team = everyone with campus access in the CRM, campus managers included (central desk left out). A counsellor is credited for leads where they are the lead owner. Calling and visit totals add up the counsellors; lead book totals count each lead once per campus."),
         h("p", null, h("b", null, "Visits scheduled"), " are dated by the first visit booked on the lead, ", h("b", null, "visits done"), " by the visit-done date. ",
           h("b", null, "Lead book"), " and ", h("b", null, "status"), " tables show open assignments right now and ignore the period. 2+ owners = more than one person assigned. Team only = every owner is on ",
           isC ? "the central desk." : "that campus team.", " Untouched = status New and the number was never dialled."),
