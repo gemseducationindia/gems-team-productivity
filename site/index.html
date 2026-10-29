@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>GEMS Team Productivity</title>
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Same look as the GEMS Marketing Audit: light only, GEMS navy for emphasis, cyan for highlights, Apple-style neutrals. */
+:root {
+  --navy: #041E42; --cyan: #00A3E0; --cyan-ink: #0077A8; --tint: #E8F6FC;
+  --bg: #FFFFFF; --soft: #F5F5F7; --line: #E5E5EA; --line-2: #D2D2D7;
+  --ink: #1D1D1F; --ink-2: #424245; --muted: #6E6E73; --faint: #A1A1A6;
+  --bad: #C4302B; --nav-h: 52px; --radius: 14px;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font: 15px/1.47 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; letter-spacing: -0.01em; }
+button, select { font: inherit; color: inherit; letter-spacing: inherit; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+.wrap { max-width: 1440px; margin: 0 auto; padding-inline: 16px; }
+@media (min-width: 900px) { .wrap { padding-inline: 32px; } }
+
+/* sign in */
+#gate { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: linear-gradient(180deg, #FFFFFF 0%, var(--soft) 100%); }
+.signin { width: 100%; max-width: 380px; display: grid; gap: 22px; text-align: center; }
+.logo { display: inline-flex; align-items: center; gap: 10px; justify-self: center; font-weight: 600; font-size: 15px; color: var(--navy); white-space: nowrap; }
+.logo .m { display: block; width: 28px; height: 28px; }
+.signin .logo .m { width: 40px; height: 40px; }
+.signin h1 { font-size: 40px; line-height: 1.08; font-weight: 600; letter-spacing: -0.03em; margin: 0; }
+.signin p { margin: -10px 0 0; color: var(--muted); font-size: 17px; }
+.fields { display: grid; border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; background: #fff; text-align: left; }
+.fields input { font: inherit; font-size: 17px; border: 0; padding: 15px 16px; background: transparent; color: var(--ink); outline: none; }
+.fields input + input { border-top: 1px solid var(--line); }
+.fields:focus-within { border-color: var(--cyan); box-shadow: 0 0 0 4px var(--tint); }
+.keep { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
+.btn-primary { border: 0; background: var(--navy); color: #fff; border-radius: 980px; padding: 13px 22px; font-size: 17px; font-weight: 500; cursor: pointer; }
+.btn-primary[disabled] { opacity: .6; cursor: progress; }
+.err { color: var(--bad); font-size: 14px; min-height: 1.2em; margin: -8px 0 0; }
+
+/* nav + sticky filters */
+.top { position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.82); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--line); }
+.nav { height: var(--nav-h); display: flex; align-items: center; gap: 16px; }
+.tabs { display: flex; gap: 4px; margin-left: 12px; }
+.tab { border: 0; background: transparent; padding: 6px 12px; border-radius: 980px; font-size: 14px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.tab:hover { background: var(--soft); }
+.tab[aria-selected="true"] { background: var(--ink); color: #fff; }
+.who { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.who b { color: var(--ink); font-weight: 500; }
+.link { border: 0; background: none; color: var(--cyan-ink); cursor: pointer; padding: 4px 0; font-size: 13px; }
+.bar { display: flex; gap: 10px; align-items: center; padding: 8px 0 10px; overflow-x: auto; scrollbar-width: none; }
+.bar::-webkit-scrollbar { display: none; }
+.seg { flex: none; display: inline-flex; padding: 3px; background: var(--soft); border-radius: 980px; gap: 2px; }
+.seg button { border: 0; background: transparent; height: 28px; padding: 0 12px; border-radius: 980px; font-size: 13px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: #fff; color: var(--ink); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); }
+.sel { flex: none; height: 34px; padding: 0 30px 0 14px; border: 1px solid var(--line-2); border-radius: 980px; background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="%236E6E73" stroke-width="1.6" stroke-linecap="round"><path d="m4 6 4 4 4-4"/></svg>') no-repeat right 10px center / 14px; font-size: 14px; cursor: pointer; appearance: none; -webkit-appearance: none; }
+.sel:hover { border-color: var(--faint); }
+.sep { flex: none; width: 1px; height: 20px; background: var(--line); }
+.fresh { margin-left: auto; flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.mobile-tabs { display: none; }
+@media (max-width: 720px) {
+  .nav .tabs { display: none; }
+  .mobile-tabs { display: flex; padding-top: 6px; margin-left: 0; }
+  .who .name { display: none; }
+  .fresh { margin-left: 0; }
+}
+
+/* page */
+main { padding-block: 28px 64px; display: grid; gap: 36px; }
+section { display: grid; gap: 14px; min-width: 0; }
+h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+h2 span { font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.kpi { padding: 18px 16px; display: grid; gap: 4px; align-content: start; min-width: 0; border-left: 1px solid var(--line); }
+.kpi:first-child { padding-left: 0; border-left: 0; }
+.kpi .k { font-size: 13px; color: var(--muted); }
+.kpi .v { font-size: 30px; line-height: 1.1; font-weight: 600; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kpi .s { font-size: 12px; color: var(--muted); }
+@media (max-width: 720px) {
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .kpi, .kpi:first-child { padding: 14px 12px; border-left: 0; border-top: 1px solid var(--line); }
+  .kpi:nth-child(-n+2) { border-top: 0; }
+  .kpi .v { font-size: 26px; }
+}
+.panel { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #fff; min-width: 0; }
+.scroll { overflow-x: auto; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+thead th { font-weight: 500; color: var(--muted); font-size: 12px; background: var(--soft); vertical-align: bottom; }
+th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: #fff; min-width: 130px; box-shadow: 1px 0 0 var(--line); }
+thead th:first-child { background: var(--soft); }
+tbody tr:hover td { background: #FAFAFC; }
+tr.total td { font-weight: 600; background: var(--soft) !important; }
+tr.grand td { font-weight: 600; background: var(--tint) !important; color: var(--navy); }
+tr.grp td { background: #fff !important; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--ink-2); text-align: left; padding-top: 16px; }
+tbody tr:last-child td { border-bottom: 0; }
+td.na { color: var(--line-2); }
+td .p { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 4px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 980px) { .two { grid-template-columns: 1fr; } }
+.chart { padding: 14px 16px 12px; display: grid; gap: 10px; }
+.chart h3 { font-size: 14px; font-weight: 600; margin: 0; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .ax { font-size: 12px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.lg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); }
+.lg span { display: inline-flex; align-items: center; gap: 6px; }
+.lg i { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
+.empty { color: var(--muted); font-size: 14px; padding: 14px 16px; }
+details.defs { border-top: 1px solid var(--line); padding-top: 18px; color: var(--muted); font-size: 13px; }
+details.defs summary { cursor: pointer; color: var(--ink-2); font-weight: 500; font-size: 14px; }
+details.defs p { margin: 10px 0 0; max-width: 120ch; }
+details.defs b { color: var(--ink-2); font-weight: 600; }
+.tip { position: fixed; z-index: 70; pointer-events: none; background: var(--ink); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 8px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="gate" hidden>
+  <form class="signin" id="signin" autocomplete="on">
+    <span class="logo"><img class="m" src="logo.png" alt="GEMS" width="28" height="28">GEMS Education</span>
+    <h1>Team Productivity</h1>
+    <p>Sign in to see your teams.</p>
+    <div class="fields">
+      <input id="user" name="username" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      <input id="pass" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+    </div>
+    <label class="keep"><input type="checkbox" id="keep" checked> Keep me signed in on this device</label>
+    <button class="btn-primary" id="go" type="submit">Sign in</button>
+    <p class="err" id="err" role="alert"></p>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <div class="top">
+    <div class="wrap">
+      <nav class="nav">
+        <span class="logo"><img class="m" src="logo.png" alt="GEMS" width="28" height="28">Team Productivity</span>
+        <div class="tabs" role="tablist" id="tabs"></div>
+        <div class="who"><span class="name">Signed in as <b id="whoName"></b></span><button class="link" id="signout">Sign out</button></div>
+      </nav>
+      <div class="tabs mobile-tabs" role="tablist" id="mtabs"></div>
+      <div class="bar" id="bar" aria-label="Filters"></div>
+    </div>
+  </div>
+  <main class="wrap" id="page"></main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, el = document) => el.querySelector(s);
+  function h(tag, attrs, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === "class") e.className = v;
+      else if (k === "text") e.textContent = v;
+      else if (k.startsWith("on")) e[k] = v;
+      else e.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of kids.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(c));
+    return e;
+  }
+
+  // ---------- sign in: users.json -> password unlocks the login's private key -> that unwraps its data file's key ----------
+  const SESSION = "gems-productivity-session";
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem(SESSION)); } catch (e) { return null; } },
+    set(v) { try { localStorage.setItem(SESSION, JSON.stringify(v)); } catch (e) {} },
+    clear() { try { localStorage.removeItem(SESSION); } catch (e) {} },
+  };
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const toB64 = (u) => btoa(String.fromCharCode(...new Uint8Array(u)));
+  const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const uidOf = async (name) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("gems-productivity:" + name.trim().toLowerCase()))).slice(0, 32);
+  const users = async () => (await fetch("users.json", { cache: "no-store" })).json();
+  async function derive(entry, pass) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveBits"]);
+    return crypto.subtle.deriveBits({ name: "PBKDF2", salt: b64(entry.salt), iterations: entry.iter, hash: "SHA-256" }, base, 256);
+  }
+  async function unlock(entry, raw) {
+    const kek = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+    const kb = b64(entry.key);
+    const inner = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: kb.slice(0, 12) }, kek, kb.slice(12))));
+    const pk = await crypto.subtle.importKey("pkcs8", b64(inner.pk), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["decrypt"]);
+    const b = new Uint8Array(await (await fetch(entry.file + "?t=" + Date.now(), { cache: "no-store" })).arrayBuffer());
+    const k = await crypto.subtle.importKey("raw", await crypto.subtle.decrypt({ name: "RSA-OAEP" }, pk, b.slice(0, 256)), "AES-GCM", false, ["decrypt"]);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(256, 268) }, k, b.slice(268));
+    const data = JSON.parse(await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
+    data.user = inner.name;
+    return data;
+  }
+  const showGate = () => { $("#gate").hidden = false; $("#app").hidden = true; $("#user").focus(); };
+  let SESS = null;   // {u, k} kept in memory so the page can pull fresh data every few minutes
+
+  $("#signin").addEventListener("submit", async (e) => {
+    e.preventDefault(); $("#err").textContent = ""; $("#go").disabled = true; $("#go").textContent = "Signing in…";
+    try {
+      const u = await uidOf($("#user").value), entry = (await users())[u];
+      if (!entry) throw new Error("no user");
+      const raw = await derive(entry, $("#pass").value);
+      const data = await unlock(entry, raw);
+      SESS = { u, k: toB64(raw) };
+      if ($("#keep").checked) store.set(SESS);
+      $("#pass").value = "";
+      boot(data);
+    } catch (err) {
+      $("#err").textContent = "That username and password didn't match. Check them and try again.";
+    } finally { $("#go").disabled = false; $("#go").textContent = "Sign in"; }
+  });
+  $("#signout").onclick = () => { store.clear(); location.reload(); };
+  (async () => {
+    const s = store.get();
+    if (s && s.u && s.k) {
+      try { const entry = (await users())[s.u]; if (entry) { SESS = s; boot(await unlock(entry, b64(s.k))); return; } } catch (e) {}
+      store.clear();
+    }
+    showGate();
+  })();
+  // the data is rebuilt every 15 minutes; check for a newer copy every 5
+  setInterval(async () => {
+    if (!SESS || document.hidden) return;
+    try { const d = await unlock((await users())[SESS.u], b64(SESS.k)); if (d.generated !== D.generated) { D = d; render(); } } catch (e) {}
+  }, 5 * 60 * 1000);
+
+  // ---------- helpers ----------
+  const NAMES = {
+    "GEMS Millennium School - Gurugram": "GMS Gurugram", "GEMS Millennium School - Indirapuram": "GMS Indirapuram",
+    "GEMS School of Excellence - Jodhpur": "GSE Jodhpur", "GEMS School of Excellence - Lucknow": "GSE Lucknow",
+    "GEMS Millennium School - Varanasi": "GMS Varanasi", "GEMS Modern Academy - Kochi": "GMA Kochi",
+    "GEMS Millennium School - Kochi": "GMS Kochi", "Little GEMS - Kochi": "Little GEMS Kochi",
+    "GEMS Millennium School - Vikhroli": "GMS Vikhroli", "GEMS Millennium School - Kalyan": "GMS Kalyan",
+    "GEMS Modern Academy - Coimbatore": "GMA Coimbatore", "GEMS Millennium School - Raipur": "GMS Raipur",
+  };
+  const short = (c) => NAMES[c] || c;
+  const int = (n) => Math.round(n).toLocaleString("en-IN");
+  const pct = (a, b) => (b ? (100 * a / b).toFixed(1) + "%" : null);
+  const hm = (sec) => { const m = Math.round(sec / 60); return m < 60 ? m + "m" : Math.floor(m / 60) + "h " + String(m % 60).padStart(2, "0") + "m"; };
+  const D8 = (s) => new Date(s + "T00:00:00Z");
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const shift = (s, n) => { const d = D8(s); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+  const fmt = (s, o) => D8(s).toLocaleDateString("en-IN", Object.assign({ day: "numeric", month: "short", timeZone: "UTC" }, o || {}));
+  const COLORS = ["#041E42", "#00A3E0", "#D9A21B", "#1A7F37", "#C4302B", "#7B4FC4", "#E0730F", "#5C6B7A", "#0E8C8C", "#B33B86", "#8A6D3B", "#3A5BC7", "#6E6E73"];
+
+  // ---------- state ----------
+  let D = null;
+  const S = { tab: "central", period: "month", campus: "all", person: "all" };
+  const PERIODS = [["today", "Today"], ["yesterday", "Yesterday"], ["7", "Last 7 days"], ["month", "This month"], ["lastmonth", "Last month"], ["all", "All time"]];
+  function range() {
+    const t = D.today;
+    if (S.period === "today") return [t, t];
+    if (S.period === "yesterday") return [shift(t, -1), shift(t, -1)];
+    if (S.period === "7") return [shift(t, -6), t];
+    if (S.period === "month") return [t.slice(0, 8) + "01", t];
+    if (S.period === "lastmonth") { const end = shift(t.slice(0, 8) + "01", -1); return [end.slice(0, 8) + "01", end]; }
+    const first = D.days.length ? D.days[0][0] : t;
+    return [first, t];
+  }
+
+  function boot(data) {
+    D = data;
+    $("#gate").hidden = true; $("#app").hidden = false;
+    $("#whoName").textContent = D.user;
+    if (D.role !== "corporate") S.tab = "school";
+    render();
+  }
+
+  function tabs() {
+    const list = D.role === "corporate" ? [["central", "Central desk"], ["school", "School teams"]] : [["school", "School teams"]];
+    for (const id of ["#tabs", "#mtabs"]) {
+      $(id).replaceChildren(...list.map(([k, label]) => h("button", { class: "tab", role: "tab", "aria-selected": String(S.tab === k),
+        onclick: () => { S.tab = k; S.person = "all"; render(); } }, label)));
+    }
+  }
+
+  function bar() {
+    const team = S.tab === "central" ? "c" : "s";
+    const people = D.people.map((p, i) => [p, i]).filter(([p]) => p.t === team && (team === "c" || S.campus === "all" || p.c === +S.campus));
+    const kids = [h("div", { class: "seg", role: "group", "aria-label": "Period" },
+      PERIODS.map(([k, label]) => h("button", { "aria-pressed": String(S.period === k), onclick: () => { S.period = k; render(); } }, label)))];
+    if (team === "s" && D.campuses.length > 1) {
+      kids.push(h("span", { class: "sep" }), h("select", { class: "sel", "aria-label": "Campus", onchange: (e) => { S.campus = e.target.value; S.person = "all"; render(); } },
+        h("option", { value: "all", selected: S.campus === "all" }, "All campuses"),
+        D.campuses.map((c, i) => h("option", { value: String(i), selected: S.campus === String(i) }, short(c)))));
+    }
+    kids.push(h("select", { class: "sel", "aria-label": "Counsellor", onchange: (e) => { S.person = e.target.value; render(); } },
+      h("option", { value: "all", selected: S.person === "all" }, "All counsellors"),
+      people.map(([p, i]) => h("option", { value: String(i), selected: S.person === String(i) }, p.n + (team === "s" && S.campus === "all" ? " · " + short(D.campuses[p.c]) : "")))));
+    const g = D.generated;
+    kids.push(h("span", { class: "fresh" }, "Updated " + fmt(g.slice(0, 10)) + ", " + g.slice(11, 16) + " IST"));
+    $("#bar").replaceChildren(...kids);
+  }
+
+  // ---------- numbers ----------
+  // calling + visits for a set of people over the period; days = completed calling days (before today, with dials)
+  function calling(set, a, b) {
+    const r = { dials: 0, connects: 0, talk: 0, fdials: 0, ftalk: 0, days: new Set(), sched: 0, done: 0 };
+    for (const [d, p, dials, conn, talk] of D.days) {
+      if (!set.has(p) || d < a || d > b) continue;
+      r.dials += dials; r.connects += conn; r.talk += talk;
+      if (d < D.today) { r.fdials += dials; r.ftalk += talk; if (dials > 0) r.days.add(d); }
+    }
+    for (const [s, dn, owners] of (S.tab === "central" ? D.cvis : D.svis)) {
+      if (!owners.some((p) => set.has(p))) continue;   // each lead counted once for a team
+      if (s && s >= a && s <= b) r.sched++;
+      if (dn && dn >= a && dn <= b) r.done++;
+    }
+    r.nd = r.days.size;
+    return r;
+  }
+  // lead book right now: flags 1 = 2+ owners, 2 = untouched, 4 = visit booked, 8 = visit completed, 16 = owned only by the team
+  function book(set) {
+    const r = { all: 0, live: 0, shared: 0, team: 0, untouched: 0, vb: 0, vc: 0, st: D.status.map(() => 0) };
+    const JUNK = D.status.indexOf("Junk");
+    for (const [st, owners, f] of (S.tab === "central" ? D.cbook : D.sbook)) {
+      if (!owners.some((p) => set.has(p))) continue;
+      r.all++; r.st[st]++; if (f & 4) r.vb++; if (f & 8) r.vc++;
+      if (st === JUNK) continue;
+      r.live++; if (f & 1) r.shared++; if (f & 16) r.team++; if (f & 2) r.untouched++;
+    }
+    return r;
+  }
+
+  // ---------- rendering ----------
+  const kpi = (k, v, s) => h("div", { class: "kpi" }, h("div", { class: "k" }, k), h("div", { class: "v" }, v ?? "–"), s ? h("div", { class: "s" }, s) : null);
+  const cell = (v, extra) => (v == null ? h("td", { class: "na" }, "–") : h("td", null, v, extra ? h("span", { class: "p" }, extra) : null));
+  const cnt = (n, of) => cell(int(n), of ? "(" + pct(n, of) + ")" : null);
+
+  function groups() {
+    // [[label or null, [[name, person idx], ...]], ...] for the current tab and filters
+    const team = S.tab === "central" ? "c" : "s";
+    let ps = D.people.map((p, i) => [p, i]).filter(([p]) => p.t === team);
+    if (team === "s" && S.campus !== "all") ps = ps.filter(([p]) => p.c === +S.campus);
+    if (S.person !== "all") ps = ps.filter(([, i]) => i === +S.person);
+    if (team === "c") return [[null, ps.map(([p, i]) => [p.n, i])]];
+    const by = new Map();
+    for (const [p, i] of ps) { if (!by.has(p.c)) by.set(p.c, []); by.get(p.c).push([p.n, i]); }
+    return [...by.entries()].sort((x, y) => short(D.campuses[x[0]]).localeCompare(short(D.campuses[y[0]]))).map(([c, l]) => [short(D.campuses[c]), l]);
+  }
+
+  function table(cols, gs, row) {
+    // one block per group: its people, then a Team total row; a grand total row when there are several groups
+    const body = [];
+    const all = new Set();
+    for (const [label, ps] of gs) {
+      if (label && gs.length > 1) body.push(h("tr", { class: "grp" }, h("td", { colspan: cols.length + 1 }, label)));
+      for (const [n, i] of ps.sort((a, b) => a[0].localeCompare(b[0]))) { body.push(h("tr", null, h("td", null, n), row(new Set([i])))); all.add(i); }
+      if (ps.length > 1) body.push(h("tr", { class: "total" }, h("td", null, label && gs.length > 1 ? label + " total" : "Team total"), row(new Set(ps.map(([, i]) => i)))));
+    }
+    if (gs.length > 1) body.push(h("tr", { class: "grand" }, h("td", null, "All campuses"), row(all)));
+    if (!body.length) return h("div", { class: "empty" }, "No counsellors to show.");
+    return h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", null, "Counsellor"), cols.map((c) => h("th", null, c)))), h("tbody", null, body)));
+  }
+
+  function lineChart(gs, a, b) {
+    // dials per day, one line per counsellor (per campus when many counsellors are shown)
+    const dates = []; for (let d = a; d <= b; d = shift(d, 1)) dates.push(d);
+    let series = gs.flatMap(([, ps]) => ps.map(([n, i]) => [n, new Set([i])]));
+    if (series.length > 8 && gs.length > 1) series = gs.map(([label, ps]) => [label, new Set(ps.map(([, i]) => i))]);
+    const idx = new Map(dates.map((d, k) => [d, k]));
+    const vals = series.map(([, set]) => { const v = dates.map(() => 0); for (const [d, p, dials] of D.days) if (set.has(p) && idx.has(d)) v[idx.get(d)] += dials; return v; });
+    const max = Math.max(1, ...vals.flat());
+    const W = 640, H = 240, L = 34, R = 10, T = 10, B = 26, iw = W - L - R, ih = H - T - B;
+    const x = (k) => L + (dates.length === 1 ? iw / 2 : (k * iw) / (dates.length - 1));
+    const step = Math.max(1, Math.pow(10, Math.floor(Math.log10(max))) / 2); const nice = Math.max(4, Math.ceil(max / (step * 4)) * step * 4);
+    const y = (v) => T + ih - (v / nice) * ih;
+    const NS = "http://www.w3.org/2000/svg";
+    const s = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Dials by day" });
+    for (let k = 0; k <= 4; k++) {
+      const v = (nice * k) / 4;
+      svg.append(s("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#E5E5EA" }));
+      const t = s("text", { x: L - 6, y: y(v) + 3.5, "text-anchor": "end", class: "ax" }); t.textContent = int(v); svg.append(t);
+    }
+    const every = Math.max(1, Math.ceil(dates.length / 8));
+    dates.forEach((d, k) => { if (k % every && k !== dates.length - 1) return; const t = s("text", { x: x(k), y: H - 8, "text-anchor": "middle", class: "ax" }); t.textContent = fmt(d); svg.append(t); });
+    vals.forEach((v, n) => {
+      const c = COLORS[n % COLORS.length];
+      svg.append(s("polyline", { points: v.map((val, k) => x(k) + "," + y(val)).join(" "), fill: "none", stroke: c, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      if (dates.length <= 45) v.forEach((val, k) => {
+        const dot = s("circle", { cx: x(k), cy: y(val), r: 3, fill: "#fff", stroke: c, "stroke-width": 1.5 });
+        dot.addEventListener("mouseenter", (e) => tip(e, `${series[n][0]} · ${fmt(dates[k])}: ${int(val)} dials`)); dot.addEventListener("mouseleave", untip);
+        svg.append(dot);
+      });
+    });
+    return h("div", { class: "panel chart" }, h("h3", null, "Dials by day"), svg,
+      h("div", { class: "lg" }, series.map(([n], k) => h("span", null, h("i", { style: "background:" + COLORS[k % COLORS.length] }), n))));
+  }
+  let TIP = null;
+  function tip(e, text) { untip(); TIP = h("div", { class: "tip" }, text); document.body.append(TIP); const r = e.target.getBoundingClientRect(); TIP.style.left = r.left + r.width / 2 - TIP.offsetWidth / 2 + "px"; TIP.style.top = r.top - TIP.offsetHeight - 8 + "px"; }
+  function untip() { if (TIP) TIP.remove(); TIP = null; }
+
+  function render() {
+    tabs(); bar();
+    const [a, b] = range();
+    const gs = groups();
+    const everyone = new Set(gs.flatMap(([, ps]) => ps.map(([, i]) => i)));
+    const tot = calling(everyone, a, b), bk = book(everyone);
+    const when = a === b ? fmt(a, { year: "numeric" }) : fmt(a) + " – " + fmt(b, { year: "numeric" });
+    const isC = S.tab === "central";
+    const ST = (name) => D.status.indexOf(name);
+
+    $("#page").replaceChildren(
+      h("section", null,
+        h("h2", null, isC ? "Central desk" : S.campus === "all" ? "School teams" : short(D.campuses[+S.campus]), h("span", null, when)),
+        h("div", { class: "kpis" },
+          kpi("Dials", int(tot.dials)), kpi("Connects", int(tot.connects)), kpi("Connect rate", pct(tot.connects, tot.dials)),
+          kpi("Talk time", hm(tot.talk)), kpi("Visits scheduled", int(tot.sched)), kpi("Visits done", int(tot.done)))),
+      h("section", null,
+        h("h2", null, "Productivity by counsellor", h("span", null, "per-day figures average over completed calling days")),
+        h("div", { class: "panel" }, table(["Days", "Dials", "Dials / day", "Connect rate", "Talk time", "Talk time / day", "Visits sched.", "Visits done"], gs, (set) => {
+          const r = calling(set, a, b);
+          return [cell(r.nd ? int(r.nd) : null), cell(int(r.dials)), cell(r.nd ? (r.fdials / r.nd).toFixed(1) : null), cell(pct(r.connects, r.dials)),
+            cell(hm(r.talk)), cell(r.nd ? hm(r.ftalk / r.nd) : null), cell(int(r.sched)), cell(int(r.done))];
+        }))),
+      h("section", null,
+        h("h2", null, "Lead book", h("span", null, "open assignments right now, junk left out")),
+        h("div", { class: "kpis" },
+          kpi("Leads in their accounts", int(bk.live)), kpi("With 2+ lead owners", int(bk.shared)),
+          kpi(isC ? "Owned only by the desk" : "Owned only by the campus team", int(bk.team)), kpi("Untouched (never dialled)", int(bk.untouched))),
+        h("div", { class: "two" },
+          h("div", { class: "panel" }, table(["Leads", "2+ owners", "Team only", "Untouched"], gs, (set) => {
+            const r = book(set); return [cell(int(r.live)), cell(int(r.shared)), cell(int(r.team)), cell(int(r.untouched))];
+          })),
+          lineChart(gs, a, b))),
+      h("section", null,
+        h("h2", null, "Leads by status and visits", h("span", null, "right now, count and % of leads, junk included")),
+        h("div", { class: "panel" }, table(["Leads", "New", "Contacted", "Visit booked", "Visit completed", "Lost", "Junk"], gs, (set) => {
+          const r = book(set);
+          return [cell(int(r.all)), cnt(r.st[ST("New")], r.all), cnt(r.st[ST("Contacted")], r.all), cnt(r.vb, r.all), cnt(r.vc, r.all), cnt(r.st[ST("Lost")], r.all), cnt(r.st[ST("Junk")], r.all)];
+        }))),
+      h("details", { class: "defs" },
+        h("summary", null, "How these numbers are counted"),
+        h("p", null, h("b", null, "Period"), ": Today is live; Last 7 days includes today. Outgoing calls only. ", h("b", null, "Connect"), " = completed call with talk time; connect rate = connects ÷ dials. ",
+          h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
+        h("p", null, isC
+          ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors counts for both; the Team total counts each lead once."
+          : "School team = counsellors with campus access in the CRM (central desk and managers left out). A counsellor is credited for leads where they are the lead owner; each campus total counts each lead once."),
+        h("p", null, h("b", null, "Visits scheduled"), " are dated by the first visit booked on the lead, ", h("b", null, "visits done"), " by the visit-done date. ",
+          h("b", null, "Lead book"), " and ", h("b", null, "status"), " tables show open assignments right now and ignore the period. 2+ owners = more than one person assigned. Team only = every owner is on ",
+          isC ? "the central desk." : "that campus team.", " Untouched = status New and the number was never dialled."),
+        h("p", null, "Data comes live from the GEMS CRM and refreshes every 15 minutes; this page picks up a new copy by itself while it is open."))
+    );
+  }
+})();
+</script>
+</body>
+</html>

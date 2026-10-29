@@ -1,0 +1,29 @@
+# Every 15 minutes: pull the live CRM, encrypt the numbers once per login and publish the site to the gh-pages branch.
+# GitHub can start scheduled runs a few minutes late when it is busy. Run it by hand from the Actions tab any time.
+name: Refresh
+on:
+  schedule: [{cron: "*/15 * * * *"}]
+  push: {branches: [main]}
+  workflow_dispatch:
+concurrency: {group: refresh, cancel-in-progress: false}
+permissions: {contents: write}
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install cryptography==43.0.3
+      - run: python build.py productivity.json
+        env: {CRM_TOKEN: "${{ secrets.CRM_TOKEN }}"}
+      - run: python publish.py productivity.json _site
+      - name: Publish to gh-pages
+        run: |
+          cd _site
+          git init -q -b gh-pages
+          git config user.name "GEMS Productivity bot"; git config user.email "gemseducationindia@users.noreply.github.com"
+          git add -A; git commit -q -m "Refresh $(TZ=Asia/Kolkata date '+%-d %b %Y %H:%M IST')"
+          # one commit only, replaced on every run, so encrypted copies don't pile up in the history
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages

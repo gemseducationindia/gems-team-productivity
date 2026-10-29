@@ -1,0 +1,24 @@
+# GEMS team productivity
+
+Central desk and school team productivity (calling, visits, lead book, lead status) from the live GEMS CRM, the same numbers as
+the Insights dashboards Central Desk Productivity and School Teams Productivity. Corporate sees both teams; each school
+manager's login sees only their campuses: https://gemseducationindia.github.io/gems-team-productivity/
+
+**Refreshes every 15 minutes** (GitHub Actions, `.github/workflows/refresh.yml`), and on every push to main.
+
+- `build.py` pulls users, campus permissions, outgoing calls, leads, open assignments and visits from the CRM and writes
+  `productivity.json` (first names and counts only, no lead names or numbers). The rules are at the top of the file.
+- `publish.py productivity.json _site` copies `site/` and writes one encrypted file per login, holding only that login's data.
+  The workflow force-pushes the result to the `gh-pages` branch as a single commit.
+- `logins.py` adds or removes logins (see below). Logins are in `logins.json`: each has an RSA key pair whose private half is
+  encrypted with the password, so the refresh job never needs passwords and adding a login needs no secret.
+- Secret: `CRM_TOKEN` (`api_key:api_secret` of the CRM API user) in Settings → Secrets and variables → Actions.
+
+## Add a school manager
+
+    pip install cryptography
+    python logins.py add "name@gemsedu.in" "GMS Raipur"                 # several campuses: "GMS Vikhroli, GMS Kalyan"
+    git commit -am "Add login" && git push                              # the push triggers a refresh
+
+It prints the new password. Use `--password "..."` to choose one, `python logins.py remove "name@gemsedu.in"` to remove a login,
+and `python logins.py add` again with the same name to reset a password.
