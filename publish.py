@@ -24,7 +24,8 @@ def subset(d, allowed):
     pmap = {}
     people = []
     for i, p in enumerate(d["people"]):
-        if p["t"] == "s" and p["c"] in cmap: pmap[i] = len(people); people.append(dict(p, c=cmap[p["c"]]))
+        # school managers see their own campus team only: no "Central desk leads" / "Unassigned leads" rows (Jay, 29 Oct)
+        if p["t"] == "s" and p["c"] in cmap and not p.get("x"): pmap[i] = len(people); people.append(dict(p, c=cmap[p["c"]]))
     rows = lambda rs: [r[:-1] + [[pmap[p] for p in r[-1]]] for r in rs if all(p in pmap for p in r[-1])]
     return dict(d, role="school", campuses=[d["campuses"][i] for i in keep], people=people,
                 days=[[r[0], pmap[r[1]], *r[2:]] for r in d["days"] if r[1] in pmap],
