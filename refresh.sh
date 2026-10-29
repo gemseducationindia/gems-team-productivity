@@ -7,7 +7,8 @@ git pull -q --ff-only origin main || true
 python3 -c "import cryptography" 2>/dev/null || pip install -q cryptography
 out=$(mktemp -d)
 python3 build.py "$out/productivity.json"
-python3 publish.py "$out/productivity.json" "$out/site" >/dev/null
+python3 business.py "$out/business.json"
+python3 publish.py "$out/productivity.json" "$out/site" "$out/business.json" >/dev/null
 cd "$out/site"
 git init -q -b gh-pages
 git add -A

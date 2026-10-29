@@ -1,8 +1,8 @@
 """Build the site: copy site/, then encrypt productivity.json once per login in logins.json, holding only that login's data.
 
-    python publish.py productivity.json _site
+    python publish.py productivity.json _site [business.json]
 
-Corporate ("all") gets both teams. A school login gets the School tab only, for its campuses, re-indexed so nothing about other
+Corporate ("all") gets both teams and the Business tab (business.json, see business.py). A school login gets the School tab only, for its campuses, re-indexed so nothing about other
 campuses or the central desk is inside. Each file = RSA-OAEP(SHA-256)-wrapped AES key (256 bytes) + IV (12) + AES-256-GCM(gzip(JSON)).
 """
 import gzip, json, os, secrets, shutil, sys
@@ -13,6 +13,7 @@ import base64
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 src, out = json.load(open(sys.argv[1])), sys.argv[2]
+if len(sys.argv) > 3: src["biz"] = json.load(open(sys.argv[3]))
 logins = json.load(open(os.path.join(HERE, "logins.json")))
 
 
@@ -28,7 +29,7 @@ def subset(d, allowed):
     return dict(d, role="school", campuses=[d["campuses"][i] for i in keep], people=people,
                 days=[[r[0], pmap[r[1]], *r[2:]] for r in d["days"] if r[1] in pmap],
                 sbook=[[r[0], [pmap[p] for p in r[1]], r[2]] for r in d["sbook"] if all(p in pmap for p in r[1])],
-                svis=rows(d["svis"]), cbook=[], cvis=[])
+                svis=rows(d["svis"]), cbook=[], cvis=[], biz=None)
 
 
 if os.path.exists(out): shutil.rmtree(out)
