@@ -552,7 +552,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
     if (S.bview === "all") {
       const order = D.biz.campuses.map((_, i) => i).sort((x, y) => short(D.biz.campuses[x]).localeCompare(short(D.biz.campuses[y])));
       for (const c of order) rows.push(Object.assign(sumCells(cs.filter((x) => x.c === c)), { label: short(D.biz.campuses[c]) }));
-      rows.push(Object.assign(sumCells(cs), { label: "Total (all campuses)", total: true }));
+      rows.push(Object.assign(sumCells(cs), { label: D.role === "corporate" ? "Total (all campuses)" : "Total", total: true }));
     } else {
       const mine = S.bview === "total" ? cs : cs.filter((x) => x.c === +S.bview);
       D.biz.grades.forEach((g, gi) => rows.push(Object.assign(sumCells(mine.filter((x) => x.g === gi)), { label: glabel(g) })));
@@ -569,8 +569,9 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
   const discPct = (r) => (r.gross ? dec(rhu(1000 * r.disc, r.gross) / 10, 1) + "%" : "–");
   const occ = (r) => r.existing + r.all;
 
+  const allc = () => (D.role === "corporate" ? "All campuses" : "Your campuses");
   function bizBar() {
-    const views = [["all", "All campuses"], ["total", "All campuses by grade"]].concat(
+    const views = (D.biz.campuses.length > 1 ? [["all", allc()], ["total", allc() + " by grade"]] : []).concat(
       D.biz.campuses.map((c, i) => [String(i), short(c)]).sort((x, y) => x[1].localeCompare(y[1])));
     const g = D.biz.generated;
     $("#bar").replaceChildren(
@@ -623,10 +624,11 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
   }
 
   function renderBiz() {
+    if (D.biz.campuses.length === 1 && (S.bview === "all" || S.bview === "total")) S.bview = "0";
     const rows = bizRows(), tot = rows.find((r) => r.total) || Object.assign(BLANK(), { label: "Total" });
     const [a, b] = brange(), byCampus = S.bview === "all";
     const when = S.bper === "all" ? "All time" : a === b ? fmt(a, { year: "numeric" }) : fmt(a) + " – " + fmt(b, { year: "numeric" });
-    const where = byCampus ? "All campuses" : S.bview === "total" ? "All campuses by grade" : short(D.biz.campuses[+S.bview]);
+    const where = byCampus ? allc() : S.bview === "total" ? allc() + " by grade" : short(D.biz.campuses[+S.bview]);
     const first = byCampus ? "Campus" : "Grade";
     $("#page").replaceChildren(
       h("section", null,

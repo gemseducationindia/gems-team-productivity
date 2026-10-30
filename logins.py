@@ -6,6 +6,7 @@
     python logins.py password "dip.kumar@gemsedu.in" "old password" "new password"   # same key pair, so nothing else changes
     python logins.py remove "dip.kumar@gemsedu.in"
     python logins.py list
+    python logins.py business "dip.kumar@gemsedu.in" on     # also show the Business tab, for the login's campuses only
     python logins.py dispatch-token "github_pat_..."   # lets Corporate's Refresh button start a CRM pull (see README)
 
 Each login gets its own RSA key pair. The public key is stored as is; the private key is stored encrypted with a key derived from
@@ -74,6 +75,12 @@ if __name__ == "__main__":
         salt, iv = secrets.token_bytes(16), secrets.token_bytes(12)
         new = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=600000).derive(sys.argv[4].encode())
         e.update(salt=b64(salt), iter=600000, key=b64(iv + AESGCM(new).encrypt(iv, inner, None))); save(d); print("password changed")
+    elif cmd == "business":
+        d = load(); e = d.get(uid(sys.argv[2]))
+        if not e: sys.exit("no such login")
+        if sys.argv[3] == "on": e["business"] = True
+        else: e.pop("business", None)
+        save(d); print(f"business tab {sys.argv[3]} for {sys.argv[2]}")
     elif cmd == "remove":
         d = load(); print("removed" if d.pop(uid(sys.argv[2]), None) else "no such login"); save(d)
     else:
