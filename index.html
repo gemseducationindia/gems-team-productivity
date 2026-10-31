@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>GEMS Productivity &amp; Business Dashboard</title>
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Same look as the GEMS Marketing Audit: light only, GEMS navy for emphasis, cyan for highlights, Apple-style neutrals. */
+:root {
+  --navy: #041E42; --cyan: #00A3E0; --cyan-ink: #0077A8; --tint: #E8F6FC;
+  --bg: #FFFFFF; --soft: #F5F5F7; --line: #E5E5EA; --line-2: #D2D2D7;
+  --ink: #1D1D1F; --ink-2: #424245; --muted: #6E6E73; --faint: #A1A1A6;
+  --bad: #C4302B; --nav-h: 52px; --radius: 14px;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font: 15px/1.47 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; letter-spacing: -0.01em; }
+button, select { font: inherit; color: inherit; letter-spacing: inherit; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+.wrap { max-width: 1440px; margin: 0 auto; padding-inline: 16px; }
+@media (min-width: 900px) { .wrap { padding-inline: 32px; } }
+
+/* sign in */
+#gate { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: linear-gradient(180deg, #FFFFFF 0%, var(--soft) 100%); }
+.signin { width: 100%; max-width: 380px; display: grid; gap: 22px; text-align: center; }
+.logo { display: inline-flex; align-items: center; gap: 10px; justify-self: center; font-weight: 600; font-size: 15px; color: var(--navy); white-space: nowrap; }
+.logo .m { display: block; width: 28px; height: 28px; }
+.signin .logo .m { width: 40px; height: 40px; }
+.signin h1 { font-size: 40px; line-height: 1.08; font-weight: 600; letter-spacing: -0.03em; margin: 0; }
+.signin p { margin: -10px 0 0; color: var(--muted); font-size: 17px; }
+.fields { display: grid; border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; background: #fff; text-align: left; }
+.fields input { font: inherit; font-size: 17px; border: 0; padding: 15px 16px; background: transparent; color: var(--ink); outline: none; }
+.fields input + input { border-top: 1px solid var(--line); }
+.fields:focus-within { border-color: var(--cyan); box-shadow: 0 0 0 4px var(--tint); }
+.keep { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
+.btn-primary { border: 0; background: var(--navy); color: #fff; border-radius: 980px; padding: 13px 22px; font-size: 17px; font-weight: 500; cursor: pointer; }
+.btn-primary[disabled] { opacity: .6; cursor: progress; }
+.err { color: var(--bad); font-size: 14px; min-height: 1.2em; margin: -8px 0 0; }
+
+/* nav + sticky filters */
+.top { position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.82); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--line); }
+.nav { height: var(--nav-h); display: flex; align-items: center; gap: 16px; }
+.tabs { display: flex; gap: 4px; margin-left: 12px; }
+.tab { border: 0; background: transparent; padding: 6px 12px; border-radius: 980px; font-size: 14px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.tab:hover { background: var(--soft); }
+.tab[aria-selected="true"] { background: var(--ink); color: #fff; }
+.who { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.who b { color: var(--ink); font-weight: 500; }
+.link { border: 0; background: none; color: var(--cyan-ink); cursor: pointer; padding: 4px 0; font-size: 13px; }
+.bar { display: flex; gap: 10px; align-items: center; padding: 8px 0 10px; overflow-x: auto; scrollbar-width: none; }
+.bar::-webkit-scrollbar { display: none; }
+.seg { flex: none; display: inline-flex; padding: 3px; background: var(--soft); border-radius: 980px; gap: 2px; }
+.seg button { border: 0; background: transparent; height: 28px; padding: 0 12px; border-radius: 980px; font-size: 13px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: #fff; color: var(--ink); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); }
+.sel { flex: none; height: 34px; padding: 0 30px 0 14px; border: 1px solid var(--line-2); border-radius: 980px; background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="%236E6E73" stroke-width="1.6" stroke-linecap="round"><path d="m4 6 4 4 4-4"/></svg>') no-repeat right 10px center / 14px; font-size: 14px; cursor: pointer; appearance: none; -webkit-appearance: none; }
+.sel:hover { border-color: var(--faint); }
+.ctl { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 980px; background: #fff; cursor: pointer; font-size: 14px; white-space: nowrap; }
+.ctl:hover { border-color: var(--faint); }
+.ctl[aria-expanded="true"] { border-color: var(--navy); box-shadow: 0 0 0 3px var(--tint); }
+.ctl svg { width: 14px; height: 14px; flex: none; color: var(--muted); }
+.ctl[disabled] { opacity: .6; cursor: progress; }
+.spin svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.pop { position: fixed; z-index: 50; background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.06); }
+.picker { width: 300px; max-height: min(70vh, 520px); display: grid; grid-template-rows: auto 1fr auto; }
+.picker .ph { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 8px; font-weight: 600; }
+.picker .ph button { border: 0; background: none; color: var(--cyan-ink); font-size: 13px; cursor: pointer; font-weight: 500; }
+.picker .list { overflow-y: auto; padding: 0 8px 8px; }
+.picker label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.picker label:hover { background: var(--soft); }
+.picker input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--navy); margin: 0; }
+.picker .pf { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid var(--line); }
+.btn { border: 1px solid var(--line-2); background: #fff; border-radius: 980px; padding: 6px 16px; font-size: 14px; cursor: pointer; }
+.btn.dark { background: var(--navy); border-color: var(--navy); color: #fff; }
+.sep { flex: none; width: 1px; height: 20px; background: var(--line); }
+.fresh { margin-left: auto; flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.mobile-tabs { display: none; }
+@media (max-width: 720px) {
+  .nav .tabs { display: none; }
+  .mobile-tabs { display: flex; padding-top: 6px; margin-left: 0; }
+  .who .name { display: none; }
+  .fresh { margin-left: 0; }
+}
+
+/* page */
+main { padding-block: 28px 64px; display: grid; gap: 36px; }
+section { display: grid; gap: 14px; min-width: 0; }
+h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+h2 span { font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.kpi { padding: 18px 16px; display: grid; gap: 4px; align-content: start; min-width: 0; border-left: 1px solid var(--line); }
+.kpi:first-child { padding-left: 0; border-left: 0; }
+.kpi .k { font-size: 13px; color: var(--muted); }
+.kpi .v { font-size: 30px; line-height: 1.1; font-weight: 600; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kpi .s { font-size: 12px; color: var(--muted); }
+@media (max-width: 720px) {
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .kpi, .kpi:first-child { padding: 14px 12px; border-left: 0; border-top: 1px solid var(--line); }
+  .kpi:nth-child(-n+2) { border-top: 0; }
+  .kpi .v { font-size: 26px; }
+}
+.panel { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #fff; min-width: 0; }
+.scroll { overflow-x: auto; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+thead th { white-space: normal; min-width: 52px; line-height: 1.25; }
+thead th { font-weight: 500; color: var(--muted); font-size: 12px; background: var(--soft); vertical-align: bottom; }
+th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: #fff; min-width: 120px; box-shadow: 1px 0 0 var(--line); }
+thead th:first-child { background: var(--soft); }
+tbody tr:hover td { background: #FAFAFC; }
+tr.total td { font-weight: 600; background: var(--soft) !important; }
+tr.grand td { font-weight: 600; background: var(--tint) !important; color: var(--navy); }
+tr.grp td { background: #fff !important; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--ink-2); text-align: left; padding-top: 16px; }
+tbody tr:last-child td { border-bottom: 0; }
+td.na { color: var(--line-2); }
+td .p { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 4px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 980px) { .two { grid-template-columns: 1fr; } }
+.chart { padding: 14px 16px 12px; display: grid; gap: 10px; }
+.chart h3 { font-size: 14px; font-weight: 600; margin: 0; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .ax { font-size: 12px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.lg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); }
+.lg span { display: inline-flex; align-items: center; gap: 6px; }
+.lg i { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
+.empty { color: var(--muted); font-size: 14px; padding: 14px 16px; }
+details.defs { border-top: 1px solid var(--line); padding-top: 18px; color: var(--muted); font-size: 13px; }
+details.defs summary { cursor: pointer; color: var(--ink-2); font-weight: 500; font-size: 14px; }
+details.defs p { margin: 10px 0 0; max-width: 120ch; }
+details.defs b { color: var(--ink-2); font-weight: 600; }
+#calls { display: block; width: 100%; height: calc(100vh - var(--top-h, 60px)); border: 0; }
+#calls.pre { position: absolute; left: -10000px; top: 0; visibility: hidden; }   /* loading in the background, laid out at full size */
+table.biz { font-size: 12.5px; }
+table.biz th, table.biz td { padding: 8px 5px; }
+table.biz thead th { min-width: 0; font-size: 11.5px; }
+table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left: 12px; }
+.seats { padding: 14px 16px 12px; display: grid; gap: 10px; }
+.seats h3 { font-size: 14px; font-weight: 600; margin: 0; }
+.seats svg { width: 100%; height: auto; display: block; overflow: visible; }
+.seats .ax { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.lg i.sq { width: 10px; height: 10px; border-radius: 3px; }
+.tip { position: fixed; z-index: 70; pointer-events: none; background: var(--ink); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 8px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="gate" hidden>
+  <form class="signin" id="signin" autocomplete="on">
+    <span class="logo"><img class="m" src="logo.png" alt="GEMS" width="28" height="28">GEMS Education</span>
+    <h1>Productivity &amp; Business Dashboard</h1>
+    <p>Sign in to see your dashboard.</p>
+    <div class="fields">
+      <input id="user" name="username" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+      <input id="pass" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+    </div>
+    <label class="keep"><input type="checkbox" id="keep" checked> Keep me signed in on this device</label>
+    <button class="btn-primary" id="go" type="submit">Sign in</button>
+    <p class="err" id="err" role="alert"></p>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <div class="top">
+    <div class="wrap">
+      <nav class="nav">
+        <span class="logo"><img class="m" src="logo.png" alt="GEMS" width="28" height="28">Productivity &amp; Business</span>
+        <div class="tabs" role="tablist" id="tabs"></div>
+        <div class="who"><span class="name">Signed in as <b id="whoName"></b></span><button class="link" id="signout">Sign out</button></div>
+      </nav>
+      <div class="tabs mobile-tabs" role="tablist" id="mtabs"></div>
+      <div class="bar" id="bar" aria-label="Filters"></div>
+    </div>
+  </div>
+  <main class="wrap" id="page"></main>
+  <iframe id="calls" title="Call audit" hidden></iframe>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, el = document) => el.querySelector(s);
+  function h(tag, attrs, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === "class") e.className = v;
+      else if (k === "text") e.textContent = v;
+      else if (k.startsWith("on")) e[k] = v;
+      else e.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of kids.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(c));
+    return e;
+  }
+
+  // ---------- sign in: users.json -> password unlocks the login's private key -> that unwraps its data file's key ----------
+  const SESSION = "gems-productivity-session";
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem(SESSION)); } catch (e) { return null; } },
+    set(v) { try { localStorage.setItem(SESSION, JSON.stringify(v)); } catch (e) {} },
+    clear() { try { localStorage.removeItem(SESSION); } catch (e) {} },
+  };
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const toB64 = (u) => btoa(String.fromCharCode(...new Uint8Array(u)));
+  const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const uidOf = async (name) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("gems-productivity:" + name.trim().toLowerCase()))).slice(0, 32);
+  const users = async () => (await fetch("users.json", { cache: "no-store" })).json();
+  async function derive(entry, pass) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveBits"]);
+    return crypto.subtle.deriveBits({ name: "PBKDF2", salt: b64(entry.salt), iterations: entry.iter, hash: "SHA-256" }, base, 256);
+  }
+  async function unlock(entry, raw) {
+    const kek = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+    const kb = b64(entry.key);
+    const inner = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: kb.slice(0, 12) }, kek, kb.slice(12))));
+    const pk = await crypto.subtle.importKey("pkcs8", b64(inner.pk), { name: "RSA-OAEP", hash: "SHA-256" }, false, ["decrypt"]);
+    PK = pk;
+    const b = new Uint8Array(await (await fetch(entry.file + "?t=" + Date.now(), { cache: "no-store" })).arrayBuffer());
+    const k = await crypto.subtle.importKey("raw", await crypto.subtle.decrypt({ name: "RSA-OAEP" }, pk, b.slice(0, 256)), "AES-GCM", false, ["decrypt"]);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(256, 268) }, k, b.slice(268));
+    const data = JSON.parse(await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
+    data.user = inner.name;
+    if (entry.dispatch) try { DISPATCH = new TextDecoder().decode(await crypto.subtle.decrypt({ name: "RSA-OAEP" }, pk, b64(entry.dispatch))); } catch (e) {}
+    return data;
+  }
+  const showGate = () => { $("#gate").hidden = false; $("#app").hidden = true; $("#user").focus(); };
+  let PK = null;         // this login's private key; it also opens the login's call audit keys
+  let DISPATCH = null;   // corporate only: a GitHub token that can only start the refresh run
+  let SESS = null;   // {u, k} kept in memory so the page can pull fresh data every few minutes
+
+  $("#signin").addEventListener("submit", async (e) => {
+    e.preventDefault(); $("#err").textContent = ""; $("#go").disabled = true; $("#go").textContent = "Signing in…";
+    try {
+      const u = await uidOf($("#user").value), entry = (await users())[u];
+      if (!entry) throw new Error("no user");
+      const raw = await derive(entry, $("#pass").value);
+      const data = await unlock(entry, raw);
+      SESS = { u, k: toB64(raw) };
+      if ($("#keep").checked) store.set(SESS);
+      $("#pass").value = "";
+      boot(data);
+    } catch (err) {
+      $("#err").textContent = "That username and password didn't match. Check them and try again.";
+    } finally { $("#go").disabled = false; $("#go").textContent = "Sign in"; }
+  });
+  $("#signout").onclick = () => { store.clear(); location.reload(); };
+  (async () => {
+    const s = store.get();
+    if (s && s.u && s.k) {
+      try { const entry = (await users())[s.u]; if (entry) { SESS = s; boot(await unlock(entry, b64(s.k))); return; } } catch (e) {}
+      store.clear();
+    }
+    showGate();
+  })();
+  // the data is rebuilt every 15 minutes; check for a newer copy every 5
+  setInterval(async () => {
+    if (!SESS || document.hidden) return;
+    try { if (!REFRESH.busy && await reloadData()) render(); } catch (e) {}
+  }, 5 * 60 * 1000);
+
+  // ---------- helpers ----------
+  const NAMES = {
+    "GEMS Millennium School - Gurugram": "GMS Gurugram", "GEMS Millennium School - Indirapuram": "GMS Indirapuram",
+    "GEMS School of Excellence - Jodhpur": "GSE Jodhpur", "GEMS School of Excellence - Lucknow": "GSE Lucknow",
+    "GEMS Millennium School - Varanasi": "GMS Varanasi", "GEMS Modern Academy - Kochi": "GMA Kochi",
+    "GEMS Millennium School - Kochi": "GMS Kochi", "Little GEMS - Kochi": "Little GEMS Kochi",
+    "GEMS Millennium School - Vikhroli": "GMS Vikhroli", "GEMS Millennium School - Kalyan": "GMS Kalyan",
+    "GEMS Modern Academy - Coimbatore": "GMA Coimbatore", "GEMS Millennium School - Raipur": "GMS Raipur",
+  };
+  const short = (c) => NAMES[c] || c;
+  const int = (n) => Math.round(n).toLocaleString("en-IN");
+  const pct = (a, b) => (b ? (100 * a / b).toFixed(1) + "%" : null);
+  const hm = (sec) => { const m = Math.round(sec / 60); return m < 60 ? m + "m" : Math.floor(m / 60) + "h " + String(m % 60).padStart(2, "0") + "m"; };
+  const D8 = (s) => new Date(s + "T00:00:00Z");
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const shift = (s, n) => { const d = D8(s); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+  const fmt = (s, o) => D8(s).toLocaleDateString("en-IN", Object.assign({ day: "numeric", month: "short", timeZone: "UTC" }, o || {}));
+  const COLORS = ["#041E42", "#00A3E0", "#D9A21B", "#1A7F37", "#C4302B", "#7B4FC4", "#E0730F", "#5C6B7A", "#0E8C8C", "#B33B86", "#8A6D3B", "#3A5BC7", "#6E6E73"];
+
+  const ICON = {
+    down: '<path d="m4 6 4 4 4-4"/>',
+    refresh: '<path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 2.5v3h-3"/>',
+  };
+  function svgIcon(path) { const e = document.createElementNS("http://www.w3.org/2000/svg", "svg"); e.setAttribute("viewBox", "0 0 16 16"); e.setAttribute("fill", "none"); e.setAttribute("stroke", "currentColor"); e.setAttribute("stroke-width", "1.6"); e.setAttribute("stroke-linecap", "round"); e.setAttribute("stroke-linejoin", "round"); e.innerHTML = path; return e; }
+
+  // ---------- campus picker (several at once) ----------
+  let POP = null;
+  function closePop() { if (!POP) return; POP.el.remove(); POP.anchor.setAttribute("aria-expanded", "false"); POP = null; }
+  document.addEventListener("mousedown", (e) => { if (POP && !POP.el.contains(e.target) && !POP.anchor.contains(e.target)) closePop(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
+  function picker(anchor) {
+    if (POP) { closePop(); return; }
+    const pick = new Set(S.campuses.size ? S.campuses : D.campuses.map((_, i) => i));
+    const order = D.campuses.map((c, i) => i).sort((a, b) => short(D.campuses[a]).localeCompare(short(D.campuses[b])));
+    const boxes = order.map((i) => { const cb = h("input", { type: "checkbox" }); cb.checked = pick.has(i); cb.onchange = () => { cb.checked ? pick.add(i) : pick.delete(i); }; return [i, cb]; });
+    const setAll = (on) => boxes.forEach(([i, cb]) => { cb.checked = on; on ? pick.add(i) : pick.delete(i); });
+    const el = h("div", { class: "pop picker", role: "dialog", "aria-label": "Campuses" },
+      h("div", { class: "ph" }, h("span", null, "Campuses"), h("span", null, h("button", { onclick: () => setAll(true) }, "All"), " ", h("button", { onclick: () => setAll(false) }, "None"))),
+      h("div", { class: "list" }, boxes.map(([i, cb]) => h("label", null, cb, short(D.campuses[i])))),
+      h("div", { class: "pf" }, h("button", { class: "btn", onclick: closePop }, "Cancel"),
+        h("button", { class: "btn dark", onclick: () => { S.campuses = pick.size === D.campuses.length || !pick.size ? new Set() : pick; S.person = "all"; closePop(); render(); } }, "Show")));
+    document.body.append(el);
+    const r = anchor.getBoundingClientRect();
+    el.style.top = r.bottom + 8 + "px"; el.style.left = Math.max(8, Math.min(r.left, innerWidth - el.offsetWidth - 8)) + "px";
+    anchor.setAttribute("aria-expanded", "true"); POP = { el, anchor };
+  }
+
+  // ---------- refresh: corporate starts a new CRM pull; everyone gets the newest copy as soon as it is published ----------
+  const REFRESH = { busy: false, note: null };
+  const REPO = "gemseducationindia/gems-team-productivity";
+  async function reloadData() { const d = await unlock((await users())[SESS.u], b64(SESS.k)); const changed = d.generated !== D.generated; D = d; return changed; }
+  async function refreshNow() {
+    if (REFRESH.busy || !SESS) return;
+    REFRESH.busy = true; REFRESH.note = null; bar();
+    try {
+      if (DISPATCH) {
+        const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/refresh.yml/dispatches`, {
+          method: "POST", headers: { Authorization: "Bearer " + DISPATCH, Accept: "application/vnd.github+json" }, body: JSON.stringify({ ref: "main" }) });
+        if (!r.ok) throw new Error("dispatch " + r.status);
+        REFRESH.note = "Pulling from the CRM, about a minute…"; bar();
+        for (let i = 0; i < 24; i++) { await new Promise((ok) => setTimeout(ok, 10000)); if (await reloadData()) { REFRESH.note = null; break; } }
+        if (REFRESH.note) REFRESH.note = "Still running, the page will update by itself";
+      } else {
+        REFRESH.note = (await reloadData()) ? null : "Already the latest copy";
+      }
+    } catch (e) { REFRESH.note = "Couldn't refresh right now, try again in a minute"; }
+    REFRESH.busy = false; render();
+    if (REFRESH.note) setTimeout(() => { REFRESH.note = null; bar(); }, 8000);
+  }
+
+  // ---------- state ----------
+  let D = null;
+  const S = { tab: "central", period: "month", campuses: new Set(), person: "all", bper: "all", bview: "all" };   // campuses: empty = all
+  const inCampus = (c) => !S.campuses.size || S.campuses.has(c);
+  const PERIODS = [["today", "Today"], ["yesterday", "Yesterday"], ["7", "Last 7 days"], ["month", "This month"], ["lastmonth", "Last month"], ["all", "All time"]];
+  function range() {
+    const t = D.today;
+    if (S.period === "today") return [t, t];
+    if (S.period === "yesterday") return [shift(t, -1), shift(t, -1)];
+    if (S.period === "7") return [shift(t, -6), t];
+    if (S.period === "month") return [t.slice(0, 8) + "01", t];
+    if (S.period === "lastmonth") { const end = shift(t.slice(0, 8) + "01", -1); return [end.slice(0, 8) + "01", end]; }
+    const first = D.days.length ? D.days[0][0] : t;
+    return [first, t];
+  }
+
+  function boot(data) {
+    D = data;
+    $("#gate").hidden = true; $("#app").hidden = false;
+    $("#whoName").textContent = D.user;
+    if (D.role !== "corporate") S.tab = "school";
+    render();
+    callAuditKeys().then((p) => { CALLS = p; if (p) { tabs(); preloadCalls(); } });
+  }
+
+  // ---------- call audit: the call audit site seals this login's keys to its key pair (p/<id>.enc) and runs in a frame ----------
+  let CALLS = null;
+  async function callAuditKeys() {
+    try {
+      const r = await fetch("../gems-call-audit/p/" + SESS.u.slice(0, 16) + ".enc?t=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return null;
+      const b = new Uint8Array(await r.arrayBuffer());
+      const k = await crypto.subtle.importKey("raw", await crypto.subtle.decrypt({ name: "RSA-OAEP" }, PK, b.slice(0, 256)), "AES-GCM", false, ["decrypt"]);
+      return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(256, 268) }, k, b.slice(268))));
+    } catch (e) { return null; }
+  }
+  function preloadCalls() {
+    // start the call audit straight after sign-in, off screen, so the tab is ready when it is clicked
+    const f = $("#calls");
+    if (f.src) return;
+    document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
+    window.gemsCallAuditPayload = CALLS; f.classList.add("pre"); f.hidden = false; f.src = "../gems-call-audit/?embed=1";
+  }
+  function showCalls() {
+    const f = $("#calls");
+    preloadCalls();
+    $("#page").hidden = true; $("#bar").hidden = true; f.classList.remove("pre"); f.hidden = false;
+    document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
+  }
+
+  function tabs() {
+    const list = (D.role === "corporate" ? [["central", "Central desk"], ["school", "School teams"]] : [["school", "School teams"]])
+      .concat(D.biz ? [["business", "Business"]] : [], CALLS ? [["calls", "Call audit"]] : []);
+    for (const id of ["#tabs", "#mtabs"]) {
+      $(id).replaceChildren(...list.map(([k, label]) => h("button", { class: "tab", role: "tab", "aria-selected": String(S.tab === k),
+        onclick: () => { S.tab = k; S.person = "all"; if (k === "calls") { tabs(); showCalls(); } else render(); } }, label)));
+    }
+  }
+
+  function bar() {
+    if (S.tab === "business") return bizBar();
+    const team = S.tab === "central" ? "c" : "s";
+    const people = D.people.map((p, i) => [p, i]).filter(([p]) => p.t === team && !p.x && (team === "c" || inCampus(p.c)));
+    const kids = [h("div", { class: "seg", role: "group", "aria-label": "Period" },
+      PERIODS.map(([k, label]) => h("button", { "aria-pressed": String(S.period === k), onclick: () => { S.period = k; render(); } }, label)))];
+    if (team === "s" && D.campuses.length > 1) {
+      const label = !S.campuses.size ? "All campuses" : S.campuses.size === 1 ? short(D.campuses[[...S.campuses][0]]) : S.campuses.size + " campuses";
+      kids.push(h("span", { class: "sep" }), h("button", { class: "ctl", "aria-haspopup": "dialog", "aria-expanded": "false", onclick: (e) => picker(e.currentTarget) },
+        h("span", null, label), svgIcon(ICON.down)));
+    }
+    kids.push(h("select", { class: "sel", "aria-label": "Counsellor", onchange: (e) => { S.person = e.target.value; render(); } },
+      h("option", { value: "all", selected: S.person === "all" }, "All counsellors"),
+      people.map(([p, i]) => h("option", { value: String(i), selected: S.person === String(i) }, p.n + (team === "s" && S.campuses.size !== 1 ? " · " + short(D.campuses[p.c]) : "")))));
+    const g = D.generated;
+    kids.push(h("span", { class: "fresh", id: "fresh" }, REFRESH.note || "Updated " + (g.slice(0, 10) === D.today ? "" : fmt(g.slice(0, 10)) + ", ") + g.slice(11, 16)),
+      h("button", { class: "ctl" + (REFRESH.busy ? " spin" : ""), disabled: REFRESH.busy, title: "Pull the latest numbers from the CRM", onclick: refreshNow }, svgIcon(ICON.refresh), REFRESH.busy ? "Refreshing…" : "Refresh"));
+    $("#bar").replaceChildren(...kids);
+  }
+
+  // ---------- numbers ----------
+  // calling + visits for a set of people over the period; days = completed calling days (before today, with dials)
+  function calling(set, a, b) {
+    const r = { dials: 0, connects: 0, talk: 0, fdials: 0, ftalk: 0, days: new Set(), sched: 0, done: 0 };
+    const nums = new Set();   // distinct numbers dialled = leads called
+    for (const [d, p, dials, conn, talk, called] of D.days) {
+      if (!set.has(p) || d < a || d > b) continue;
+      r.dials += dials; r.connects += conn; r.talk += talk;
+      for (const n of called || []) nums.add(n);
+      if (d < D.today) { r.fdials += dials; r.ftalk += talk; if (dials > 0) r.days.add(d); }
+    }
+    if (S.period === "all") { a = "0000-00-00"; b = "9999-99-99"; }   // all time: visits from before the first call too
+    for (const [s, dn, owners] of (S.tab === "central" ? D.cvis : D.svis)) {
+      const n = owners.some((p) => set.has(p)) ? 1 : 0;   // each lead once, also in team and campus totals
+      if (s && s >= a && s <= b) r.sched += n;
+      if (dn && dn >= a && dn <= b) r.done += n;
+    }
+    r.nd = r.days.size; r.leads = nums.size;
+    return r;
+  }
+  // lead book right now: flags 1 = 2+ owners, 2 = untouched, 4 = visit booked, 8 = visit completed, 16 = owned only by the team
+  function book(set) {
+    const r = { all: 0, live: 0, shared: 0, team: 0, untouched: 0, vb: 0, vc: 0, st: D.status.map(() => 0) };
+    const JUNK = D.status.indexOf("Junk");
+    for (const [st, owners, f] of (S.tab === "central" ? D.cbook : D.sbook)) {
+      if (!owners.some((p) => set.has(p))) continue;
+      r.all++; r.st[st]++; if (f & 4) r.vb++; if (f & 8) r.vc++;
+      if (st === JUNK) continue;
+      r.live++; if (f & 1) r.shared++; if (f & 16) r.team++; if (f & 2) r.untouched++;
+    }
+    return r;
+  }
+
+  // ---------- rendering ----------
+  const kpi = (k, v, s) => h("div", { class: "kpi" }, h("div", { class: "k" }, k), h("div", { class: "v" }, v ?? "–"), s ? h("div", { class: "s" }, s) : null);
+  const cell = (v, extra) => (v == null ? h("td", { class: "na" }, "–") : h("td", null, v, extra ? h("span", { class: "p" }, extra) : null));
+  const cnt = (n, of) => cell(int(n), of ? "(" + pct(n, of) + ")" : null);
+
+  function groups() {
+    // [[label or null, [[name, person idx], ...]], ...] for the current tab and filters
+    const team = S.tab === "central" ? "c" : "s";
+    let ps = D.people.map((p, i) => [p, i]).filter(([p]) => p.t === team);
+    if (team === "s") ps = ps.filter(([p]) => inCampus(p.c));
+    if (S.person !== "all") ps = ps.filter(([, i]) => i === +S.person);
+    if (team === "c") return [[null, ps.map(([p, i]) => [p.n, i])]];
+    const by = new Map();
+    for (const [p, i] of ps) { if (!by.has(p.c)) by.set(p.c, []); by.get(p.c).push([p.n, i]); }
+    return [...by.entries()].sort((x, y) => short(D.campuses[x[0]]).localeCompare(short(D.campuses[y[0]]))).map(([c, l]) => [short(D.campuses[c]), l]);
+  }
+
+  function table(cols, gs, row) {
+    // one block per group: its people, then a Team total row; a grand total row when there are several groups
+    const body = [];
+    const all = new Set();
+    for (const [label, ps] of gs) {
+      if (label && gs.length > 1) body.push(h("tr", { class: "grp" }, h("td", { colspan: cols.length + 1 }, label)));
+      // counsellors by name; campus leads nobody on the team owns (central desk / unassigned) get no row of their own but count in the campus total
+      const named = ps.filter(([, i]) => !D.people[i].x);
+      for (const [n, i] of named.sort((a, b) => a[0].localeCompare(b[0]))) body.push(h("tr", null, h("td", null, n), row(new Set([i]))));
+      for (const [, i] of ps) all.add(i);
+      if (ps.length > 1 || named.length < ps.length) body.push(h("tr", { class: "total" }, h("td", null, label && gs.length > 1 ? label + " total" : S.tab === "school" ? "Campus total" : "Team total"), row(new Set(ps.map(([, i]) => i)))));
+    }
+    if (gs.length > 1) body.push(h("tr", { class: "grand" }, h("td", null, "All campuses"), row(all)));
+    if (!body.length) return h("div", { class: "empty" }, "No counsellors to show.");
+    return h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", null, "Counsellor"), cols.map((c) => h("th", null, c)))), h("tbody", null, body)));
+  }
+
+  function lineChart(gs, a, b) {
+    // dials per day, one line per counsellor (per campus when many counsellors are shown)
+    const dates = []; for (let d = a; d <= b; d = shift(d, 1)) dates.push(d);
+    gs = gs.map(([label, ps]) => [label, ps.filter(([, i]) => !D.people[i].x)]).filter(([, ps]) => ps.length);
+    let series = gs.flatMap(([, ps]) => ps.map(([n, i]) => [n, new Set([i])]));
+    if (series.length > 8 && gs.length > 1) series = gs.map(([label, ps]) => [label, new Set(ps.map(([, i]) => i))]);
+    const idx = new Map(dates.map((d, k) => [d, k]));
+    const vals = series.map(([, set]) => { const v = dates.map(() => 0); for (const [d, p, dials] of D.days) if (set.has(p) && idx.has(d)) v[idx.get(d)] += dials; return v; });
+    const max = Math.max(1, ...vals.flat());
+    const W = 640, H = 240, L = 34, R = 10, T = 10, B = 26, iw = W - L - R, ih = H - T - B;
+    const x = (k) => L + (dates.length === 1 ? iw / 2 : (k * iw) / (dates.length - 1));
+    const step = Math.max(1, Math.pow(10, Math.floor(Math.log10(max))) / 2); const nice = Math.max(4, Math.ceil(max / (step * 4)) * step * 4);
+    const y = (v) => T + ih - (v / nice) * ih;
+    const NS = "http://www.w3.org/2000/svg";
+    const s = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Dials by day" });
+    for (let k = 0; k <= 4; k++) {
+      const v = (nice * k) / 4;
+      svg.append(s("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "#E5E5EA" }));
+      const t = s("text", { x: L - 6, y: y(v) + 3.5, "text-anchor": "end", class: "ax" }); t.textContent = int(v); svg.append(t);
+    }
+    const every = Math.max(1, Math.ceil(dates.length / 8));
+    dates.forEach((d, k) => { if (k % every && k !== dates.length - 1) return; const t = s("text", { x: x(k), y: H - 8, "text-anchor": "middle", class: "ax" }); t.textContent = fmt(d); svg.append(t); });
+    vals.forEach((v, n) => {
+      const c = COLORS[n % COLORS.length];
+      svg.append(s("polyline", { points: v.map((val, k) => x(k) + "," + y(val)).join(" "), fill: "none", stroke: c, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      if (dates.length <= 45) v.forEach((val, k) => {
+        const dot = s("circle", { cx: x(k), cy: y(val), r: 3, fill: "#fff", stroke: c, "stroke-width": 1.5 });
+        dot.addEventListener("mouseenter", (e) => tip(e, `${series[n][0]} · ${fmt(dates[k])}: ${int(val)} dials`)); dot.addEventListener("mouseleave", untip);
+        svg.append(dot);
+      });
+    });
+    return h("div", { class: "panel chart" }, h("h3", null, "Dials by day"), svg,
+      h("div", { class: "lg" }, series.map(([n], k) => h("span", null, h("i", { style: "background:" + COLORS[k % COLORS.length] }), n))));
+  }
+  let TIP = null;
+  function tip(e, text) { untip(); TIP = h("div", { class: "tip" }, text); document.body.append(TIP); const r = e.target.getBoundingClientRect(); TIP.style.left = r.left + r.width / 2 - TIP.offsetWidth / 2 + "px"; TIP.style.top = r.top - TIP.offsetHeight - 8 + "px"; }
+  function untip() { if (TIP) TIP.remove(); TIP = null; }
+
+  // ---------- business (CFO): the Insights Business Dashboard, same rules (see business.py) and same columns ----------
+  const BPERIODS = [["all", "All time"], ["today", "Today"], ["7", "Last 7 days"], ["month", "This month"], ["lastmonth", "Last month"]];
+  function brange() {
+    const t = D.biz.today;
+    if (S.bper === "today") return [t, t];
+    if (S.bper === "7") return [shift(t, -6), t];
+    if (S.bper === "month") return [t.slice(0, 8) + "01", t];
+    if (S.bper === "lastmonth") { const end = shift(t.slice(0, 8) + "01", -1); return [end.slice(0, 8) + "01", end]; }
+    return ["0000-00-00", "9999-99-99"];
+  }
+  const GLABEL = { "Pre-Kindergarten": "EY1 Pre-KG", "Nursery": "EY2 Nursery", "Junior KG": "EY3 Junior KG", "Senior KG": "EY4 Senior KG" };
+  const glabel = (g) => GLABEL[g] || (/^Grade \d+$/.test(g) ? "Grade " + g.slice(6).padStart(2, "0") : g);
+  const BLANK = () => ({ leads: 0, vs: 0, vd: 0, normal: 0, rte: 0, adm: 0, all: 0, gross: 0, disc: 0, existing: 0, capacity: 0 });
+  // one cell per campus x grade for the period; money in paise so every sum is exact
+  function bizCells() {
+    const B = D.biz, [a, b] = brange(), cells = new Map(), inP = (d) => d != null && d >= a && d <= b;
+    const at = (c, g) => { const k = c * 1000 + g; if (!cells.has(k)) cells.set(k, Object.assign(BLANK(), { c, g })); return cells.get(k); };
+    for (const [c, g, cap, ex] of B.cap) { const x = at(c, g); x.capacity += cap; x.existing += ex; }
+    for (const [c, g, ld, sd, dd] of B.leads) { const x = at(c, g); if (inP(ld)) x.leads++; if (inP(sd)) x.vs++; if (inP(dd)) x.vd++; }
+    for (const [c, g, type, d, fees] of B.deals) {
+      const x = at(c, g); x.all++;
+      if (!inP(d)) continue;
+      x.adm++; if (type === "Normal") x.normal++; if (type === "RTE") x.rte++;
+      for (const [p, ds] of fees) { x.gross += Math.round(p * 100); x.disc += Math.round(ds * 100); }
+    }
+    return [...cells.values()];
+  }
+  const sumCells = (cs) => cs.reduce((t, x) => { for (const k in t) t[k] += x[k]; return t; }, BLANK());
+  // rows for the view: campuses (+ all-campus total) or the grades of one campus / all campuses (+ total)
+  function bizRows() {
+    const cs = bizCells(), keep = (r) => r.leads + r.all + r.capacity + r.existing > 0, rows = [];
+    if (S.bview === "all") {
+      const order = D.biz.campuses.map((_, i) => i).sort((x, y) => short(D.biz.campuses[x]).localeCompare(short(D.biz.campuses[y])));
+      for (const c of order) rows.push(Object.assign(sumCells(cs.filter((x) => x.c === c)), { label: short(D.biz.campuses[c]) }));
+      rows.push(Object.assign(sumCells(cs), { label: D.role === "corporate" ? "Total (all campuses)" : "Total", total: true }));
+    } else {
+      const mine = S.bview === "total" ? cs : cs.filter((x) => x.c === +S.bview);
+      D.biz.grades.forEach((g, gi) => rows.push(Object.assign(sumCells(mine.filter((x) => x.g === gi)), { label: glabel(g) })));
+      rows.push(Object.assign(sumCells(mine), { label: "Total", total: true }));
+    }
+    return rows.filter(keep);
+  }
+  // rounding as MariaDB does it in the Insights query: half up, count ratios to 4 decimals first, then to the shown decimals
+  function rhu(num, den) { let q = Math.floor(num / den), r = num - q * den; if (r < 0) { q--; r += den; } if (r >= den) { q++; r -= den; } return 2 * r >= den ? q + 1 : q; }
+  const dec = (n, k) => n.toLocaleString("en-IN", { minimumFractionDigits: k, maximumFractionDigits: k });
+  const bint = (n) => n.toLocaleString("en-IN");
+  const bpct = (a, b) => (b ? dec(rhu(rhu(1e6 * a, b), 1000) / 10, 1) + "%" : "–");
+  const lakh = (paise) => dec(rhu(paise, 100000) / 100, 2);   // ROUND(rupees / 1e5, 2)
+  const discPct = (r) => (r.gross ? dec(rhu(1000 * r.disc, r.gross) / 10, 1) + "%" : "–");
+  const occ = (r) => r.existing + r.all;
+
+  const allc = () => (D.role === "corporate" ? "All campuses" : "Your campuses");
+  function bizBar() {
+    const views = (D.biz.campuses.length > 1 ? [["all", allc()], ["total", allc() + " by grade"]] : []).concat(
+      D.biz.campuses.map((c, i) => [String(i), short(c)]).sort((x, y) => x[1].localeCompare(y[1])));
+    const g = D.biz.generated;
+    $("#bar").replaceChildren(
+      h("div", { class: "seg", role: "group", "aria-label": "Period" },
+        BPERIODS.map(([k, label]) => h("button", { "aria-pressed": String(S.bper === k), onclick: () => { S.bper = k; render(); } }, label))),
+      h("span", { class: "sep" }),
+      h("select", { class: "sel", "aria-label": "Campus", onchange: (e) => { S.bview = e.target.value; render(); } },
+        views.map(([v, label]) => h("option", { value: v, selected: S.bview === v }, label))),
+      h("span", { class: "fresh", id: "fresh" }, REFRESH.note || "Updated " + (g.slice(0, 10) === D.biz.today ? "" : fmt(g.slice(0, 10)) + ", ") + g.slice(11, 16)),
+      h("button", { class: "ctl" + (REFRESH.busy ? " spin" : ""), disabled: REFRESH.busy, title: "Pull the latest numbers from the CRM", onclick: refreshNow }, svgIcon(ICON.refresh), REFRESH.busy ? "Refreshing…" : "Refresh"));
+  }
+
+  function bizTable(first, cols, rows, row) {
+    return h("div", { class: "scroll" }, h("table", { class: "biz" },
+      h("thead", null, h("tr", null, h("th", null, first), cols.map((c) => h("th", null, c)))),
+      h("tbody", null, rows.map((r) => h("tr", { class: r.total ? "total" : null }, h("td", null, r.label), row(r).map((v) => h("td", null, v)))))));
+  }
+
+  function seats(rows) {
+    // stacked bars: carry forward, new admissions (all time), vacant seats; one bar per campus or grade
+    rows = rows.filter((r) => !r.total);
+    const NS = "http://www.w3.org/2000/svg", s = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
+    const SER = [["Admissions (Carry Forwards)", "#041E42"], ["New admissions (all time)", "#00A3E0"], ["Vacant seats", "#E5E5EA"]];
+    const parts = (r) => [r.existing, r.all, r.capacity > 0 ? Math.max(0, r.capacity - occ(r)) : 0];
+    const max = Math.max(1, ...rows.map((r) => parts(r).reduce((a, b) => a + b, 0)));
+    const W = 960, L = 120, R = 70, row = 24, T = 4, H = T + rows.length * row + 22, iw = W - L - R;
+    const raw = max / 5, mag = Math.pow(10, Math.floor(Math.log10(raw))), step = [1, 2, 5, 10].find((m) => m * mag >= raw) * mag, nice = Math.ceil(max / step) * step;
+    const x = (v) => L + (v / nice) * iw;
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Seats by " + (S.bview === "all" ? "campus" : "grade") });
+    for (let v = 0; v <= nice + 1e-9; v += step) {
+      svg.append(s("line", { x1: x(v), x2: x(v), y1: T, y2: H - 18, stroke: "#E5E5EA" }));
+      const t = s("text", { x: x(v), y: H - 4, "text-anchor": "middle", class: "ax" }); t.textContent = bint(v); svg.append(t);
+    }
+    rows.forEach((r, n) => {
+      const y = T + n * row + 4, lab = s("text", { x: L - 8, y: y + 12, "text-anchor": "end", class: "ax" }); lab.textContent = r.label; svg.append(lab);
+      let at = 0;
+      parts(r).forEach((v, k) => {
+        if (!v) return;
+        const rect = s("rect", { x: x(at), y, width: Math.max(0.5, x(at + v) - x(at)), height: row - 8, fill: SER[k][1], rx: 2 });
+        rect.addEventListener("mouseenter", (e) => tip(e, `${r.label} · ${SER[k][0]}: ${bint(v)}`)); rect.addEventListener("mouseleave", untip);
+        svg.append(rect); at += v;
+      });
+      const vac = r.capacity > 0 ? r.capacity - occ(r) : null;
+      const t = s("text", { x: x(at) + 6, y: y + 12, class: "ax" });
+      t.textContent = r.capacity > 0 ? (vac < 0 ? bint(-vac) + " over" : bint(vac) + " vacant") : "no capacity";
+      svg.append(t);
+    });
+    return h("div", { class: "panel seats" }, h("h3", null, "Seats: carry forward, new admissions and vacant"), svg,
+      h("div", { class: "lg" }, SER.map(([n, c]) => h("span", null, h("i", { class: "sq", style: "background:" + c }), n))));
+  }
+
+  function renderBiz() {
+    if (D.biz.campuses.length === 1 && (S.bview === "all" || S.bview === "total")) S.bview = "0";
+    const rows = bizRows(), tot = rows.find((r) => r.total) || Object.assign(BLANK(), { label: "Total" });
+    const [a, b] = brange(), byCampus = S.bview === "all";
+    const when = S.bper === "all" ? "All time" : a === b ? fmt(a, { year: "numeric" }) : fmt(a) + " – " + fmt(b, { year: "numeric" });
+    const where = byCampus ? allc() : S.bview === "total" ? allc() + " by grade" : short(D.biz.campuses[+S.bview]);
+    const first = byCampus ? "Campus" : "Grade";
+    $("#page").replaceChildren(
+      h("section", null,
+        h("h2", null, "Business dashboard", h("span", null, where + " · " + when)),
+        h("div", { class: "kpis" },
+          kpi("Total Leads", bint(tot.leads)), kpi("Total New Admissions", bint(tot.adm)), kpi("Net Total Admission", bint(occ(tot))),
+          kpi("Capacity Utilization", bpct(occ(tot), tot.capacity)), kpi("Total Billing", "₹ " + lakh(tot.gross - tot.disc) + " L"))),
+      h("section", null,
+        h("h2", null, "Business report by " + first.toLowerCase(), h("span", null, "₹ L = lakh")),
+        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Visits done", "New Admissions (Normal)", "New Admissions (RTE)", "Total New Admissions",
+          "Admissions (Carry Forwards)", "Net Total Admission", "Current Capacity", "Capacity Utilization %", "Total Revenue (₹ L)", "Discount Given (₹ L)", "Discount %", "Total Billing (₹ L)"],
+          rows, (r) => [bint(r.leads), bint(r.vd), bint(r.normal), bint(r.rte), bint(r.adm), bint(r.existing), bint(occ(r)), bint(r.capacity),
+            bpct(occ(r), r.capacity), lakh(r.gross), lakh(r.disc), discPct(r), lakh(r.gross - r.disc)]))),
+      h("section", null,
+        h("h2", null, "Sales funnel by " + first.toLowerCase()),
+        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Visits Booked", "Visits done", "Total New Admissions", "Lead to Visit Booked %",
+          "Visit Booked to Visit Done %", "Visit Done to Admission %", "Lead to Admission %"],
+          rows, (r) => [bint(r.leads), bint(r.vs), bint(r.vd), bint(r.adm), bpct(r.vs, r.leads), bpct(r.vd, r.vs), bpct(r.adm, r.vd), bpct(r.adm, r.leads)]))),
+      h("section", null, seats(rows)),
+      h("details", { class: "defs" },
+        h("summary", null, "How these numbers are counted"),
+        h("p", null, "Live from the CRM; tests and duplicates excluded; GMS Raipur left out. ", h("b", null, "Period"), " filters leads (enquiry date), visits (visit date), new admissions and billing (blocking fee date). Admissions (Carry Forwards), Net Total Admission, Current Capacity, Capacity Utilization % and the seats chart always show the position as of today."),
+        h("p", null, h("b", null, "New admissions"), " = Blocking Fee Paid or Enrolled, Normal / RTE from the application. ", h("b", null, "Net Total Admission"), " = carry forward + all new admissions (transfer cases will be deducted once ERP data is linked)."),
+        h("p", null, h("b", null, "Total Revenue"), " = published application, blocking, tuition and annual fees on every application, plus prospectus where ticked; ", h("b", null, "Discount Given"), " = discounts on those fees; ", h("b", null, "Total Billing"), " = net payable after discount (published − discount), not collections."),
+        h("p", null, h("b", null, "Funnel"), ": Lead to Visit Booked % = visits booked ÷ leads, Visit Booked to Visit Done % = visits done ÷ visits booked, Visit Done to Admission % = new admissions ÷ visits done, Lead to Admission % = new admissions ÷ leads."),
+        h("p", null, "Capacity and carry forward come from the operations capacity file. The data refreshes every hour; Refresh pulls it again now."))
+    );
+  }
+
+  function render() {
+    if (S.tab === "calls") { tabs(); return; }
+    $("#page").hidden = false; $("#bar").hidden = false; if (!$("#calls").classList.contains("pre")) $("#calls").hidden = true;
+    tabs(); bar();
+    if (S.tab === "business") return renderBiz();
+    const [a, b] = range();
+    const gs = groups();
+    const everyone = new Set(gs.flatMap(([, ps]) => ps.map(([, i]) => i)));
+    const tot = calling(everyone, a, b), bk = book(everyone);
+    const when = a === b ? fmt(a, { year: "numeric" }) : fmt(a) + " – " + fmt(b, { year: "numeric" });
+    const isC = S.tab === "central";
+    const ST = (name) => D.status.indexOf(name);
+
+    $("#page").replaceChildren(
+      h("section", null,
+        h("h2", null, isC ? "Central desk" : S.campuses.size === 1 ? short(D.campuses[[...S.campuses][0]]) : S.campuses.size ? [...S.campuses].map((c) => short(D.campuses[c])).join(", ") : "School teams", h("span", null, when)),
+        h("div", { class: "kpis" },
+          kpi("Dials", int(tot.dials)), kpi("Connects", int(tot.connects)), kpi("Connect rate", pct(tot.connects, tot.dials)),
+          kpi("Talk time", hm(tot.talk)), kpi("Visits scheduled", int(tot.sched)), kpi("Visits done", int(tot.done)))),
+      h("section", null,
+        h("h2", null, "Productivity by counsellor", h("span", null, "per-day figures average over completed calling days")),
+        h("div", { class: "panel" }, table(["Days", "Dials", "Dials / day", "Leads called", "Avg dials / lead", "Avg connects / lead", "Connect rate", "Talk time", "Talk time / day", "Visits sched.", "Visits done"], gs, (set) => {
+          const r = calling(set, a, b);
+          return [cell(r.nd ? int(r.nd) : null), cell(int(r.dials)), cell(r.nd ? (r.fdials / r.nd).toFixed(1) : null),
+            cell(int(r.leads)), cell(r.leads ? (r.dials / r.leads).toFixed(2) : null), cell(r.leads ? (r.connects / r.leads).toFixed(2) : null), cell(pct(r.connects, r.dials)),
+            cell(hm(r.talk)), cell(r.nd ? hm(r.ftalk / r.nd) : null), cell(int(r.sched)), cell(int(r.done))];
+        }))),
+      h("section", null,
+        h("h2", null, "Lead book", h("span", null, "open assignments right now, junk left out")),
+        h("div", { class: "kpis" },
+          kpi("Leads in their accounts", int(bk.live)), kpi("With 2+ lead owners", int(bk.shared)),
+          kpi(isC ? "Owned only by the desk" : "Owned only by the campus team", int(bk.team)), kpi("Untouched (never dialled)", int(bk.untouched))),
+        h("div", { class: "two" },
+          h("div", { class: "panel" }, table(["Leads", "2+ owners", "Team only", "Untouched"], gs, (set) => {
+            const r = book(set); return [cell(int(r.live)), cell(int(r.shared)), cell(int(r.team)), cell(int(r.untouched))];
+          })),
+          lineChart(gs, a, b))),
+      h("section", null,
+        h("h2", null, "Leads by status and visits", h("span", null, "right now, count and % of leads, junk included")),
+        h("div", { class: "panel" }, table(["Leads", "New", "Contacted", "Visit booked", "Visit completed", "Lost", "Junk"], gs, (set) => {
+          const r = book(set);
+          return [cell(int(r.all)), cnt(r.st[ST("New")], r.all), cnt(r.st[ST("Contacted")], r.all), cnt(r.vb, r.all), cnt(r.vc, r.all), cnt(r.st[ST("Lost")], r.all), cnt(r.st[ST("Junk")], r.all)];
+        }))),
+      h("details", { class: "defs" },
+        h("summary", null, "How these numbers are counted"),
+        h("p", null, h("b", null, "Period"), ": Today is live; Last 7 days includes today. Outgoing calls only. ", h("b", null, "Connect"), " = completed call with talk time; connect rate = connects ÷ dials. ",
+          h("b", null, "Leads called"), " = different numbers dialled in the period; ", h("b", null, "avg dials / connects per lead"), " = dials or connects ÷ leads called (the team total counts a lead called by two counsellors once). ", h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
+        h("p", null, isC
+          ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors shows on both their rows but counts once in every total."
+          : "School team = everyone with campus access in the CRM, campus managers included (central desk left out). A counsellor is credited for leads they own at their campus, or are assigned to there when the owner is not on the campus team. " + (D.role === "corporate" ? "Every lead with a campus counts there: leads the campus team doesn't own (central desk or unassigned) have no row of their own but are in the campus total, so each campus total matches the Business tab for the same period. " : "Campus leads the team doesn't own (central desk or unassigned) are left out here. ") + "Every total counts each lead once. A manager covering two campuses has each call under the campus of the lead dialled."),
+        h("p", null, h("b", null, "Visits scheduled"), " are dated by the first visit booked on the lead, ", h("b", null, "visits done"), " by the visit-done date. ",
+          h("b", null, "Lead book"), " and ", h("b", null, "status"), " tables show open assignments right now and ignore the period. 2+ owners = more than one person assigned. Team only = every owner is on ",
+          isC ? "the central desk." : "that campus team.", " Untouched = status New and the number was never dialled. Duplicates and test leads are left out, and visits use the same rules as the Business tab."),
+        h("p", null, "Data comes live from the GEMS CRM and refreshes every hour; Refresh pulls it again now. The page picks up a new copy by itself while it is open."))
+    );
+  }
+})();
+</script>
+</body>
+</html>
