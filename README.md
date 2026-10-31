@@ -5,7 +5,7 @@ visits, new admissions, capacity, revenue, discount, billing by campus and grade
 the Insights dashboards Central Desk Productivity, School Teams Productivity and Business Dashboard. Corporate sees everything;
 each school manager's login sees only the School tab for their campuses: https://gemseducationindia.github.io/gems-team-productivity/
 
-**Refreshed by a Claude scheduled task** that runs `bash refresh.sh` (build, encrypt, force-push `gh-pages`). `.github/workflows/refresh.yml` is a manual backup that needs the `CRM_TOKEN` secret.
+**Refreshed by GitHub Actions** (`.github/workflows/refresh.yml`, every 30 min Mon-Sat 9:00-19:00 IST, needs the `CRM_TOKEN` secret). It builds, encrypts and force-pushes `gh-pages`. `bash refresh.sh` does the same by hand.
 
 - `build.py` pulls users, campus permissions, outgoing calls, leads, open assignments and visits from the CRM and writes
   `productivity.json` (first names and counts only, no lead names or numbers). The rules are at the top of the file.
