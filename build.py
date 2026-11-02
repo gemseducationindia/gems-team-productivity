@@ -7,6 +7,8 @@ Same rules as the Insights dashboards it replaces (Central Desk Productivity, Sc
   managers included, as in Insights). They are credited for leads where they are the lead owner, once per campus they cover.
 - Dial = outgoing call. Connect = status Completed with duration > 0. Talk time = all outgoing call durations.
 - Duplicates and test leads ('test' in the lead name) are left out, as on the Business tab.
+- Bulk-imported leads (source 'Physical form', or tagged 'Bulk import') are left out of the lead books, so lead counts,
+  untouched and status mixes only cover real enquiries. Calls to them still count as dials, and a visit they book still counts.
 - School credit is per campus of the lead: a school counsellor is credited for a lead they own at a campus they cover, or, when
   the owner isn't on that campus team, for a lead they are assigned to (open ToDo) there. A school
   person covering several campuses has each call put under the campus of the lead dialled, so nothing is counted twice.
@@ -74,8 +76,11 @@ central_set = set(central)
 
 # ---- leads (needed first: a call is placed under the campus of the lead dialled) ----
 has_test = lambda *xs: "test" in " ".join(x for x in xs if x is not None).lower()
+BULK_SOURCES, BULK_TAG = {"Physical form"}, "bulk import"   # old paper forms and cold databases imported in bulk
+is_bulk = lambda l: l["source"] in BULK_SOURCES or BULK_TAG in [t.strip().lower() for t in (l["_user_tags"] or "").split(",")]
 leads = [l for l in get("CRM Lead", ["name", "status", "lead_owner", "visit_attempts", "visit_done_on", "modified", "mobile_digits",
-                                     "territory", "converted", "is_duplicate", "lead_name", "first_name", "last_name"])
+                                     "territory", "converted", "is_duplicate", "lead_name", "first_name", "last_name",
+                                     "source", "_user_tags"])
          if not l["is_duplicate"] and not has_test(l["lead_name"], l["first_name"], l["last_name"])]
 campus_of_number = {}
 for l in sorted(leads, key=lambda l: l["modified"]):   # latest lead wins when a number has several
@@ -132,11 +137,12 @@ for l in leads:
     untouched = l["status"] == "New" and not (l["mobile_digits"] and l["mobile_digits"] in dialled) and name not in linked
     shared = len(todo) >= 2
     flags = (1 if shared else 0) | (2 if untouched else 0) | (4 if booked else 0) | (8 if done else 0)
+    bulk = is_bulk(l)   # bulk imports: their visits count, they stay out of the lead books
     # central desk: owner or open assignee who is a central counsellor
     cown = sorted(pidx[("c", u)] for u in ({owner} | todo) if u in central_set)
     if cown:
         team_only = all(u in central_set for u in todo)
-        cbook.append([status_of(l["status"]), cown, flags | (16 if team_only else 0)])
+        if not bulk: cbook.append([status_of(l["status"]), cown, flags | (16 if team_only else 0)])
         if booked: cvis.append([sched, done, cown])
     # school tab: every lead with a campus, credited to the campus team member who owns it, else a Central desk / Unassigned row
     c = l["territory"]
@@ -146,7 +152,7 @@ for l in leads:
                 or [other("Central desk leads" if ({owner} | todo) & central_set else "Unassigned leads", c)])
         team = {u for u, cc in school if cc == c}
         team_only = all(u in team for u in todo)
-        sbook.append([status_of(l["status"]), mine, flags | (16 if team_only else 0)])
+        if not bulk: sbook.append([status_of(l["status"]), mine, flags | (16 if team_only else 0)])
         if booked: svis.append([sched, done, mine])
 
 now = datetime.now(IST)
