@@ -5,7 +5,8 @@ Same rules as the Insights dashboards it replaces (Central Desk Productivity, Sc
   (lead owner) or are assigned to (open ToDo).
 - School team = enabled users with a CRM Territory User Permission, minus central counsellors and System Managers (campus
   managers included, as in Insights). They are credited for leads where they are the lead owner, once per campus they cover.
-- Dial = outgoing call. Connect = status Completed with duration > 0. Talk time = all outgoing call durations.
+- Dial = any call, incoming or outgoing (incoming is credited to the receiver). Connect = status Completed with duration > 0.
+  Talk time = all call durations, incoming + outgoing. Leads called = distinct numbers called or calling in.
 - Duplicates and test leads ('test' in the lead name) are left out, as on the Business tab.
 - School credit is per campus of the lead: a school counsellor is credited for a lead they own at a campus they cover, or, when
   the owner isn't on that campus team, for a lead they are assigned to (open ToDo) there. A school
@@ -82,7 +83,11 @@ for l in sorted(leads, key=lambda l: l["modified"]):   # latest lead wins when a
     if l["mobile_digits"] and l["territory"]: campus_of_number[l["mobile_digits"]] = l["territory"]
 
 # ---- calls: per person per day ----
-calls = get("CRM Call Log", ["caller", "to", "status", "duration", "start_time"], [["type", "=", "Outgoing"]])
+calls = []   # one row per call: who (counsellor), num (the other party), status, duration, start_time
+for c in get("CRM Call Log", ["type", "caller", "receiver", "from", "to", "status", "duration", "start_time"]):
+    out = c["type"] == "Outgoing"
+    calls.append({"caller": c["caller"] if out else c["receiver"], "to": c["to"] if out else (c["from"] or c["caller"]),
+                  "status": c["status"], "duration": c["duration"], "start_time": c["start_time"]})
 # a lead with any call linked to it (incoming too) is not untouched, as in Insights
 linked = {c["reference_docname"] for c in get("CRM Call Log", ["reference_docname"], [["reference_doctype", "=", "CRM Lead"], ["reference_docname", "is", "set"]])}
 dialled = set()
@@ -153,4 +158,4 @@ now = datetime.now(IST)
 out = {"generated": now.strftime("%Y-%m-%dT%H:%M"), "today": now.strftime("%Y-%m-%d"), "status": STATUS + ["Other"],
        "campuses": campuses, "people": people, "days": days, "cbook": cbook, "sbook": sbook, "cvis": cvis, "svis": svis}
 json.dump(out, open(sys.argv[1] if len(sys.argv) > 1 else "productivity.json", "w"), separators=(",", ":"))
-print(f"{len(central)} central, {len(school)} school rows, {len(calls)} outgoing calls, {len(cbook)} central / {len(sbook)} school book leads")
+print(f"{len(central)} central, {len(school)} school rows, {len(calls)} calls, {len(cbook)} central / {len(sbook)} school book leads")
