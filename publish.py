@@ -4,7 +4,8 @@
 
 Corporate ("all") gets both teams and the Business tab (business.json, see business.py). A school login gets the School tab only, for its campuses, re-indexed so nothing about other
 campuses or the central desk is inside; a school login with "business": true (python logins.py business NAME on) also gets the
-Business tab for its campuses only. Each file = RSA-OAEP(SHA-256)-wrapped AES key (256 bytes) + IV (12) + AES-256-GCM(gzip(JSON)).
+Business tab for its campuses only. A counsellor login ("campuses": "counsellor", python logins.py counsellor NAME EMAIL) gets
+the Central desk tab with only that counsellor's own row. Each file = RSA-OAEP(SHA-256)-wrapped AES key (256 bytes) + IV (12) + AES-256-GCM(gzip(JSON)).
 """
 import gzip, json, os, secrets, shutil, sys
 from cryptography.hazmat.primitives import hashes, serialization
@@ -27,7 +28,19 @@ def biz_subset(b, allowed):
     return dict(b, campuses=[b["campuses"][i] for i in keep], cap=pick(b["cap"]), leads=pick(b["leads"]), deals=pick(b["deals"]))
 
 
-def subset(d, allowed, business=False):
+def counsellor(d, person):
+    # one central counsellor's own Central desk numbers: their row only, other owners dropped from shared leads, no school data
+    me = [i for i, p in enumerate(d["people"]) if p["t"] == "c" and p.get("u") == person]
+    if not me: raise SystemExit(f"counsellor login {person}: no central counsellor with that id in the CRM")
+    i = me[0]; mine = lambda owners: i in owners
+    return dict(d, role="counsellor", campuses=[], people=[{"n": d["people"][i]["n"], "t": "c"}],
+                days=[[r[0], 0, *r[2:]] for r in d["days"] if r[1] == i],
+                cbook=[[r[0], [0], r[2]] for r in d["cbook"] if mine(r[1])], cvis=[[r[0], r[1], [0]] for r in d["cvis"] if mine(r[2])],
+                sbook=[], svis=[], biz=None)
+
+
+def subset(d, allowed, business=False, person=None):
+    if allowed == "counsellor": return counsellor(d, person)
     if allowed == "all": return dict(d, role="corporate")
     keep = [i for i, c in enumerate(d["campuses"]) if c in allowed]
     cmap = {i: n for n, i in enumerate(keep)}
@@ -47,7 +60,7 @@ if os.path.exists(out): shutil.rmtree(out)
 shutil.copytree(os.path.join(HERE, "site"), out)
 index = {}
 for u, e in logins.items():
-    data = subset(src, e["campuses"], e.get("business", False))
+    data = subset(src, e["campuses"], e.get("business", False), e.get("person"))
     k, iv = secrets.token_bytes(32), secrets.token_bytes(12)
     pub = serialization.load_der_public_key(base64.b64decode(e["pub"]))
     wrapped = pub.encrypt(k, padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None))

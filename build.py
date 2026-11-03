@@ -23,7 +23,7 @@ CRM datetimes are stored in IST, so their date part is the IST date.
 
 Env: CRM_TOKEN ("key:secret"), or FRAPPE_API_KEY + FRAPPE_API_SECRET.
 """
-import json, os, re, sys, time, urllib.parse, urllib.request
+import hashlib, json, os, re, sys, time, urllib.parse, urllib.request
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -58,6 +58,9 @@ roles, full = defaultdict(set), {}
 for u in users:
     if u["enabled"]: roles[u["name"]].add(u.get("role")); full[u["name"]] = u["full_name"] or u["name"]
 first = lambda uid: full[uid].split(" ")[0]   # first word of the full name, as Insights shows it
+# a central counsellor's id for counsellor logins (logins.json "person"): a hash of the email's local part, so the public
+# logins file doesn't name anyone; the call audit site (gems-call-audit-data publish.py) computes the same hash
+person_id = lambda uid: hashlib.sha256(("gems-productivity:person:" + uid.split("@")[0].lower()).encode()).hexdigest()[:16]
 
 central = sorted(u for u, r in roles.items() if "GEMS Central Counsellor" in r and "System Manager" not in r)
 perms = get("User Permission", ["user", "for_value"], [["allow", "=", "CRM Territory"]])
@@ -67,7 +70,7 @@ campuses = sorted({c for _, c in school} | {p["for_value"] for p in perms})
 
 # people: one row per central counsellor, and one per (school counsellor, campus)
 people, pidx = [], {}
-for u in central: pidx[("c", u)] = len(people); people.append({"n": first(u), "t": "c"})
+for u in central: pidx[("c", u)] = len(people); people.append({"n": first(u), "t": "c", "u": person_id(u)})
 for u, c in school: pidx[("s", u, c)] = len(people); people.append({"n": first(u), "t": "s", "c": campuses.index(c)})
 school_of = defaultdict(list)          # user -> [(campus, person idx)]
 for u, c in school: school_of[u].append((c, pidx[("s", u, c)]))

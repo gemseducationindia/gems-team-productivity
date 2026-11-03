@@ -5,6 +5,7 @@
     python logins.py add "dip.kumar@gemsedu.in" "GMS Vikhroli" --password "..."  # set your own password
     python logins.py password "dip.kumar@gemsedu.in" "old password" "new password"   # same key pair, so nothing else changes
     python logins.py remove "dip.kumar@gemsedu.in"
+    python logins.py counsellor "Arya" "arya.suresh@gemsedu.in" --password "..."   # a central counsellor: own Central desk row + own calls
     python logins.py list
     python logins.py business "dip.kumar@gemsedu.in" on     # also show the Business tab, for the login's campuses only
     python logins.py dispatch-token "github_pat_..."   # lets Corporate's Refresh button start a CRM pull (see README)
@@ -34,9 +35,12 @@ def load(): return json.load(open(FILE)) if os.path.exists(FILE) else {}
 def save(d): json.dump(d, open(FILE, "w"), indent=1, sort_keys=True); open(FILE, "a").write("\n")
 
 
-def add(name, scope, password=None):
-    campuses = "all" if scope.strip().lower() == "all" else [SHORT.get(c.strip(), c.strip()) for c in scope.split(",") if c.strip()]
-    if campuses != "all":
+person_id = lambda email: hashlib.sha256(("gems-productivity:person:" + email.split("@")[0].strip().lower()).encode()).hexdigest()[:16]
+
+
+def add(name, scope, password=None, person=None):
+    campuses = "counsellor" if person else "all" if scope.strip().lower() == "all" else [SHORT.get(c.strip(), c.strip()) for c in scope.split(",") if c.strip()]
+    if isinstance(campuses, list):
         bad = [c for c in campuses if c not in SHORT.values()]
         if bad: sys.exit(f"Unknown campus: {bad}. Use short names like {', '.join(list(SHORT)[:3])}.")
     password = password or "-".join(secrets.token_urlsafe(4).replace("-", "x").replace("_", "y") for _ in range(3))
@@ -49,8 +53,10 @@ def add(name, scope, password=None):
     d = load(); u = uid(name)
     d[u] = {"campuses": campuses, "iter": 600000, "salt": b64(salt), "key": b64(iv + AESGCM(kek).encrypt(iv, inner, None)),
             "pub": b64(spki), "file": "d-" + u[:16] + ".enc"}
+    if person: d[u]["person"] = person_id(person)   # hashed, so the public file doesn't name the counsellor
     save(d)
-    print(f"Login: {name.strip()}\nPassword: {password}\nSees: {'all campuses' if campuses == 'all' else ', '.join(campuses)}")
+    sees = "all campuses" if campuses == "all" else f"own Central desk numbers and calls ({person})" if person else ", ".join(campuses)
+    print(f"Login: {name.strip()}\nPassword: {password}\nSees: {sees}")
 
 
 if __name__ == "__main__":
@@ -58,6 +64,9 @@ if __name__ == "__main__":
     if cmd == "add":
         pw = sys.argv[sys.argv.index("--password") + 1] if "--password" in sys.argv else None
         add(sys.argv[2], sys.argv[3], pw)
+    elif cmd == "counsellor":
+        pw = sys.argv[sys.argv.index("--password") + 1] if "--password" in sys.argv else None
+        add(sys.argv[2], "", pw, person=sys.argv[3])
     elif cmd == "dispatch-token":
         # encrypt the token to each corporate login's public key, so only those passwords can read it in the browser
         from cryptography.hazmat.primitives.asymmetric import padding
@@ -84,4 +93,4 @@ if __name__ == "__main__":
     elif cmd == "remove":
         d = load(); print("removed" if d.pop(uid(sys.argv[2]), None) else "no such login"); save(d)
     else:
-        for u, e in load().items(): print(u, e["campuses"])
+        for u, e in load().items(): print(u, e["campuses"], e.get("person", ""))
