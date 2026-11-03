@@ -23,6 +23,13 @@ each school manager's login sees only the School tab for their campuses: https:/
     python logins.py add "name@gemsedu.in" "GMS Raipur"                 # several campuses: "GMS Vikhroli, GMS Kalyan"
     git commit -am "Add login" && git push && bash refresh.sh
 
+A central desk counsellor gets their own login with only their own Central desk row (opening on Today) and their own calls in
+the Call audit tab:
+
+    python logins.py counsellor "Arya" "arya.suresh@gemsedu.in" --password "..."
+
+The CRM email is stored only as a hash. The Call audit tab for a new login appears after the next call audit publish.
+
 It prints the new password. Use `--password "..."` to choose one, `python logins.py remove "name@gemsedu.in"` to remove a login,
 and `python logins.py add` again with the same name to reset a password.
 
