@@ -6,7 +6,7 @@ Same rules as the Insights dashboards it replaces (Central Desk Productivity, Sc
 - School team = enabled users with a CRM Territory User Permission, minus central counsellors and System Managers (campus
   managers included, as in Insights). They are credited for leads where they are the lead owner, once per campus they cover.
 - Dial = any call, incoming or outgoing (incoming is credited to the receiver). Connect = status Completed with duration > 0.
-  Talk time = all call durations, incoming + outgoing. Leads called = distinct numbers called or calling in.
+  Talk time = all call durations, incoming + outgoing. Unique leads = distinct numbers called or calling in.
 - Duplicates and test leads ('test' in the lead name) are left out, as on the Business tab.
 - School credit is per campus of the lead: a school counsellor is credited for a lead they own at a campus they cover, or, when
   the owner isn't on that campus team, for a lead they are assigned to (open ToDo) there. A school
