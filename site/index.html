@@ -679,7 +679,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
           kpi("Talk time", hm(tot.talk)), kpi("Visits scheduled", int(tot.sched)), kpi("Visits done", int(tot.done)))),
       h("section", null,
         h("h2", null, "Productivity by counsellor", h("span", null, "per-day figures average over completed calling days")),
-        h("div", { class: "panel" }, table(["Days", "Dials", "Dials / day", "Leads called", "Avg dials / lead", "Avg connects / lead", "Connect rate", "Talk time", "Talk time / day", "Visits sched.", "Visits done"], gs, (set) => {
+        h("div", { class: "panel" }, table(["Days", "Dials", "Dials / day", "Unique leads", "Avg dials / lead", "Avg connects / lead", "Connect rate", "Talk time", "Talk time / day", "Visits sched.", "Visits done"], gs, (set) => {
           const r = calling(set, a, b);
           return [cell(r.nd ? int(r.nd) : null), cell(int(r.dials)), cell(r.nd ? (r.fdials / r.nd).toFixed(1) : null),
             cell(int(r.leads)), cell(r.leads ? (r.dials / r.leads).toFixed(2) : null), cell(r.leads ? (r.connects / r.leads).toFixed(2) : null), cell(pct(r.connects, r.dials)),
@@ -704,7 +704,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
       h("details", { class: "defs" },
         h("summary", null, "How these numbers are counted"),
         h("p", null, h("b", null, "Period"), ": Today is live; Last 7 days includes today. ", h("b", null, "Dials"), " = all calls, incoming + outgoing; ", h("b", null, "talk time"), " = incoming + outgoing call time. ", h("b", null, "Connect"), " = completed call with talk time; connect rate = connects ÷ dials. ",
-          h("b", null, "Leads called"), " = different numbers called or calling in during the period; ", h("b", null, "avg dials / connects per lead"), " = dials or connects ÷ leads called (the team total counts a lead called by two counsellors once). ", h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
+          h("b", null, "Unique leads"), " = different numbers called or calling in during the period; ", h("b", null, "avg dials / connects per lead"), " = dials or connects ÷ unique leads (the team total counts a lead called by two counsellors once). ", h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
         h("p", null, isC
           ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors shows on both their rows but counts once in every total."
           : "School team = everyone with campus access in the CRM, campus managers included (central desk left out). A counsellor is credited for leads they own at their campus, or are assigned to there when the owner is not on the campus team. " + (D.role === "corporate" ? "Every lead with a campus counts there: leads the campus team doesn't own (central desk or unassigned) have no row of their own but are in the campus total, so each campus total matches the Business tab for the same period. " : "Campus leads the team doesn't own (central desk or unassigned) are left out here. ") + "Every total counts each lead once. A manager covering two campuses has each call under the campus of the lead dialled."),
