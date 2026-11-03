@@ -28,6 +28,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 EXCLUDED = {"GEMS Millennium School - Raipur"}
 CAP_QUERY = "br59hj57ib"
 FEES = ["application_fee", "blocking_fee", "tuition", "Annual Fee", "Prospectus"]   # fee types, in the order stored per deal
+FEE_ALIASES = {"annual_fee": "Annual Fee"}   # same fee entered as a built-in charge instead of an extra
 
 
 def call(path):
@@ -87,6 +88,7 @@ q = {"doctype": "GEMS Application Fee", "parent": "CRM Deal", "limit_page_length
 for f in call("/api/method/frappe.client.get_list?" + urllib.parse.urlencode(q))["message"]:
     if f["parentfield"] != "fees" or f["published"] is None: continue
     kind = f["extra_fee_type"] if f["charge"] == "extra" else f["charge"]
+    kind = FEE_ALIASES.get(kind, kind)
     if f["charge"] == "extra" and kind != "Annual Fee" and not f["taken"]: continue
     if kind not in FEES: sys.exit(f"unknown fee type {kind!r} on {f['parent']}")
     row = fees.setdefault(f["parent"], [[0, 0] for _ in FEES])[FEES.index(kind)]
