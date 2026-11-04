@@ -1,7 +1,10 @@
-# On demand: started by the dashboard's Refresh button (Corporate login) or by hand from the Actions tab. Needs the CRM_TOKEN
-# secret. The hourly refresh is a Claude scheduled task that runs refresh.sh.
+# Every 30 min Mon-Sat 9:00-19:00 IST, plus on demand from the dashboard's Refresh button (Corporate login) or the Actions tab.
+# Needs the CRM_TOKEN secret ("key:secret" of the Frappe API user). GitHub can start scheduled runs a few minutes late.
 name: Refresh
 on:
+  schedule:
+    - cron: "30 3 * * 1-6"         # 09:00 IST
+    - cron: "0,30 4-13 * * 1-6"    # 09:30 to 19:00 IST
   workflow_dispatch:
 concurrency: {group: refresh, cancel-in-progress: false}
 permissions: {contents: write}
