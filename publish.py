@@ -5,7 +5,8 @@
 Corporate ("all") gets both teams and the Business tab (business.json, see business.py). A school login gets the School tab only, for its campuses, re-indexed so nothing about other
 campuses or the central desk is inside; a school login with "business": true (python logins.py business NAME on) also gets the
 Business tab for its campuses only. A counsellor login ("campuses": "counsellor", python logins.py counsellor NAME EMAIL) gets
-the Central desk tab with only that counsellor's own row. Each file = RSA-OAEP(SHA-256)-wrapped AES key (256 bytes) + IV (12) + AES-256-GCM(gzip(JSON)).
+the Central desk tab with only that counsellor's own row. The central desk login ("campuses": "central", python logins.py add
+"Centraldesk" central) gets the Central desk tab for the whole desk and no call audit. Each file = RSA-OAEP(SHA-256)-wrapped AES key (256 bytes) + IV (12) + AES-256-GCM(gzip(JSON)).
 """
 import gzip, json, os, secrets, shutil, sys
 from cryptography.hazmat.primitives import hashes, serialization
@@ -39,8 +40,20 @@ def counsellor(d, person):
                 sbook=[], svis=[], biz=None)
 
 
+def central(d):
+    # the central desk team login: the Central desk tab with every central counsellor, nothing about the school teams
+    keep = [i for i, p in enumerate(d["people"]) if p["t"] == "c"]
+    pmap = {i: n for n, i in enumerate(keep)}
+    owners = lambda os: [pmap[p] for p in os if p in pmap]
+    return dict(d, role="central", campuses=[], people=[{"n": d["people"][i]["n"], "t": "c"} for i in keep],
+                days=[[r[0], pmap[r[1]], *r[2:]] for r in d["days"] if r[1] in pmap],
+                cbook=[[r[0], owners(r[1]), r[2]] for r in d["cbook"] if owners(r[1])],
+                cvis=[[r[0], r[1], owners(r[2])] for r in d["cvis"] if owners(r[2])], sbook=[], svis=[], biz=None)
+
+
 def subset(d, allowed, business=False, person=None):
     if allowed == "counsellor": return counsellor(d, person)
+    if allowed == "central": return central(d)
     if allowed == "all": return dict(d, role="corporate")
     keep = [i for i, c in enumerate(d["campuses"]) if c in allowed]
     cmap = {i: n for n, i in enumerate(keep)}

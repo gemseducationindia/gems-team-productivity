@@ -353,7 +353,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
     D = data;
     $("#gate").hidden = true; $("#app").hidden = false;
     $("#whoName").textContent = D.user;
-    if (D.role === "counsellor") { S.tab = "central"; S.period = "today"; }   // a central counsellor: own numbers, opening on Today
+    if (D.role === "counsellor" || D.role === "central") { S.tab = "central"; S.period = "today"; }   // a central counsellor: own numbers, opening on Today
     else if (D.role !== "corporate") S.tab = "school";
     render();
     callAuditKeys().then((p) => { CALLS = p; if (p) { tabs(); preloadCalls(); } });
@@ -385,7 +385,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
   }
 
   function tabs() {
-    const list = (D.role === "corporate" ? [["central", "Central desk"], ["school", "School teams"]] : D.role === "counsellor" ? [["central", "Central desk"]] : [["school", "School teams"]])
+    const list = (D.role === "corporate" ? [["central", "Central desk"], ["school", "School teams"]] : D.role === "counsellor" || D.role === "central" ? [["central", "Central desk"]] : [["school", "School teams"]])
       .concat(D.biz ? [["business", "Business"]] : [], CALLS ? [["calls", "Call audit"]] : []);
     for (const id of ["#tabs", "#mtabs"]) {
       $(id).replaceChildren(...list.map(([k, label]) => h("button", { class: "tab", role: "tab", "aria-selected": String(S.tab === k),

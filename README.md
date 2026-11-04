@@ -28,7 +28,8 @@ the Call audit tab:
 
     python logins.py counsellor "Arya" "arya.suresh@gemsedu.in" --password "..."
 
-The CRM email is stored only as a hash. The Call audit tab for a new login appears after the next call audit publish.
+The CRM email is stored only as a hash. The shared central desk login (`python logins.py add "Centraldesk" central`) sees the
+Central desk tab for the whole desk, opening on Today, and no Call audit tab. The Call audit tab for a new login appears after the next call audit publish.
 
 It prints the new password. Use `--password "..."` to choose one, `python logins.py remove "name@gemsedu.in"` to remove a login,
 and `python logins.py add` again with the same name to reset a password.
