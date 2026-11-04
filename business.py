@@ -29,7 +29,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 EXCLUDED = {"GEMS Millennium School - Raipur"}
 CAP_QUERY = "br59hj57ib"
 FEES = ["application_fee", "blocking_fee", "tuition", "Annual Fee", "Prospectus"]   # fee types, in the order stored per deal
-FEE_ALIASES = {"annual_fee": "Annual Fee"}   # same fee entered as a built-in charge instead of an extra
+FEE_ALIASES = {"annual_fee": "Annual Fee", "prospectus_fee": "Prospectus"}   # same fee entered as a built-in charge instead of an extra
 
 
 def call(path):
@@ -97,6 +97,15 @@ for f in call("/api/method/frappe.client.get_list?" + urllib.parse.urlencode(q))
     if kind not in FEES: sys.exit(f"unknown fee type {kind!r} on {f['parent']}")
     row = fees.setdefault(f["parent"], [[0, 0] for _ in FEES])[FEES.index(kind)]
     row[0] += f["published"]; row[1] += f["discount_amount"] or 0
+
+# Estimated fees for enrolled deals whose grade has no fee grid yet (Jay, 4 Nov 2026): GMS Kochi 2027-28 plan has no
+# Grade 6/7, so tuition uses the plan's highest rate (Grade 5, 1,75,450) as a floor. Used only while the deal has no Fees rows,
+# so the estimate drops out by itself once alignd adds the grid. Order = FEES: [published, discount].
+ESTIMATES = {
+    "CRM-DEAL-2026-00090": [[10000, 10000], [100000, 50000], [175450, 0], [25000, 0], [0, 0]],   # Rebecca Ann Jacob, Grade 6
+    "CRM-DEAL-2026-00091": [[10000, 10000], [100000, 0], [175450, 0], [25000, 0], [0, 0]],       # Dev Ranjith, Grade 7
+}
+for k, v in ESTIMATES.items(): fees.setdefault(k, v)
 
 deals = []
 for d in get("CRM Deal", ["name", "territory", "grade_applied", "admission_type", "status", "is_duplicate", "creation",
