@@ -1,6 +1,7 @@
 """Add, reset or remove a dashboard login. Logins live in logins.json in this repo, so adding one needs no GitHub secret.
 
     python logins.py add "Corporate" all
+    python logins.py add "Centraldesk" central      # Central desk tab only, whole desk
     python logins.py add "dip.kumar@gemsedu.in" "GMS Vikhroli, GMS Kalyan"      # prints a new password
     python logins.py add "dip.kumar@gemsedu.in" "GMS Vikhroli" --password "..."  # set your own password
     python logins.py password "dip.kumar@gemsedu.in" "old password" "new password"   # same key pair, so nothing else changes
@@ -39,7 +40,8 @@ person_id = lambda email: hashlib.sha256(("gems-productivity:person:" + email.sp
 
 
 def add(name, scope, password=None, person=None):
-    campuses = "counsellor" if person else "all" if scope.strip().lower() == "all" else [SHORT.get(c.strip(), c.strip()) for c in scope.split(",") if c.strip()]
+    sc = scope.strip().lower()
+    campuses = "counsellor" if person else sc if sc in ("all", "central") else [SHORT.get(c.strip(), c.strip()) for c in scope.split(",") if c.strip()]
     if isinstance(campuses, list):
         bad = [c for c in campuses if c not in SHORT.values()]
         if bad: sys.exit(f"Unknown campus: {bad}. Use short names like {', '.join(list(SHORT)[:3])}.")
@@ -55,7 +57,7 @@ def add(name, scope, password=None, person=None):
             "pub": b64(spki), "file": "d-" + u[:16] + ".enc"}
     if person: d[u]["person"] = person_id(person)   # hashed, so the public file doesn't name the counsellor
     save(d)
-    sees = "all campuses" if campuses == "all" else f"own Central desk numbers and calls ({person})" if person else ", ".join(campuses)
+    sees = "all campuses" if campuses == "all" else "the Central desk tab (whole desk)" if campuses == "central" else f"own Central desk numbers and calls ({person})" if person else ", ".join(campuses)
     print(f"Login: {name.strip()}\nPassword: {password}\nSees: {sees}")
 
 
