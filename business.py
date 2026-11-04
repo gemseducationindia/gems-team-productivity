@@ -3,6 +3,7 @@
 Same rules as the Insights Business Dashboard it replaces (frj4ta3uje + driqlh66ug, base query br59hj57ib):
 - Leads: not duplicate, campus set (not the India root), no 'test' in the lead name. Dated by creation; grade = grade applied
   ('Not set' when blank).
+- Bulk-imported leads (source 'Physical form', or tagged 'Bulk import') are not counted as leads; a visit they book still counts.
 - Visit booked = visit_attempts > 0, visit_done_on set, status Visit Scheduled / Visit Done, or converted; dated by the first
   GEMS Visit (created on, or its visit date if earlier), else visit_done_on, else modified. Visit done = visit_done_on set, status Visit Done, or converted; dated by
   visit_done_on, else modified.
@@ -62,6 +63,8 @@ def capacities():
 
 day = lambda s: s[:10] if s else None
 has_test = lambda *xs: "test" in " ".join(x for x in xs if x is not None).lower()   # CONCAT_WS(' ', ...) LIKE '%test%'
+BULK_SOURCES, BULK_TAG = {"Physical form"}, "bulk import"   # same rule as build.py
+is_bulk = lambda l: l["source"] in BULK_SOURCES or BULK_TAG in [t.strip().lower() for t in (l["_user_tags"] or "").split(",")]
 
 caps = [r for r in capacities() if r[0] not in EXCLUDED]
 
@@ -73,12 +76,13 @@ for v in get("GEMS Visit", ["enquiry", "creation", "scheduled_on"]):
 
 leads = []
 for l in get("CRM Lead", ["name", "territory", "grade_applied", "creation", "modified", "status", "converted", "visit_attempts",
-                          "visit_done_on", "is_duplicate", "lead_name", "first_name", "last_name"]):
+                          "visit_done_on", "is_duplicate", "lead_name", "first_name", "last_name", "source", "_user_tags"]):
     t = l["territory"]
     if l["is_duplicate"] or not t or t.lower().endswith("india") or t in EXCLUDED or has_test(l["lead_name"], l["first_name"], l["last_name"]): continue
     booked = (l["visit_attempts"] or 0) > 0 or l["visit_done_on"] or l["status"] in ("Visit Scheduled", "Visit Done") or l["converted"]
     done = l["visit_done_on"] or l["status"] == "Visit Done" or l["converted"]
-    leads.append([t, l["grade_applied"] or "Not set", day(l["creation"]),
+    if is_bulk(l) and not booked: continue
+    leads.append([t, l["grade_applied"] or "Not set", None if is_bulk(l) else day(l["creation"]),   # no lead date: not a lead
                   day(first_visit.get(l["name"]) or l["visit_done_on"] or l["modified"]) if booked else None,
                   day(l["visit_done_on"] or l["modified"]) if done else None])
 
@@ -115,4 +119,4 @@ out = {"generated": now.strftime("%Y-%m-%dT%H:%M"), "today": now.strftime("%Y-%m
        "deals": [[ci(t), gi(g), a, dt, f] for t, g, a, dt, f in deals]}
 json.dump(out, open(sys.argv[1] if len(sys.argv) > 1 else "business.json", "w"), separators=(",", ":"))
 rev = sum(p for d in deals for p, _ in d[4]); disc = sum(x for d in deals for _, x in d[4])
-print(f"business: {len(leads)} leads, {len(deals)} new admissions, revenue {rev:,.0f}, discount {disc:,.0f}, billing {rev - disc:,.0f}")
+print(f"business: {sum(1 for r in leads if r[2])} leads, {len(deals)} new admissions, revenue {rev:,.0f}, discount {disc:,.0f}, billing {rev - disc:,.0f}")
