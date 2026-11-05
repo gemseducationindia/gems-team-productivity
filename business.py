@@ -13,6 +13,7 @@ Same rules as the Insights Business Dashboard it replaces (frj4ta3uje + driqlh66
   (Prospectus) only when ticked. Discount = their discount_amount. Billing = revenue - discount.
 - Capacity and carry forward (current strength) per campus and grade come from the capacities CTE in Insights query
   br59hj57ib, so they are edited in one place and both dashboards agree.
+- Deals in ESTIMATES (no fee grid for their grade yet) use estimated fees; the dashboard marks billing that includes them with *.
 - GMS Raipur is left out.
 CRM datetimes are stored in IST, so their date part is the IST date.
 
@@ -105,6 +106,7 @@ ESTIMATES = {
     "CRM-DEAL-2026-00090": [[10000, 10000], [100000, 50000], [175450, 0], [25000, 0], [0, 0]],   # Rebecca Ann Jacob, Grade 6
     "CRM-DEAL-2026-00091": [[10000, 10000], [100000, 0], [175450, 0], [25000, 0], [0, 0]],       # Dev Ranjith, Grade 7
 }
+estimated = {k for k in ESTIMATES if k not in fees}   # shown with an asterisk on the dashboard
 for k, v in ESTIMATES.items(): fees.setdefault(k, v)
 
 deals = []
@@ -114,7 +116,8 @@ for d in get("CRM Deal", ["name", "territory", "grade_applied", "admission_type"
     if not d["territory"]: sys.exit(f"{d['name']} is a new admission with no campus")
     if d["is_duplicate"] or d["territory"] in EXCLUDED or has_test(d["name"], d["student_name"], d["lead_name"], d["lost_notes"]): continue
     deals.append([d["territory"], d["grade_applied"] or "Not set", d["admission_type"] or "Normal",
-                  day(d["blocking_fee_paid_on"] or d["enrolled_on"] or d["creation"]), fees.get(d["name"], [[0, 0] for _ in FEES])])
+                  day(d["blocking_fee_paid_on"] or d["enrolled_on"] or d["creation"]), fees.get(d["name"], [[0, 0] for _ in FEES])]
+                 + ([1] if d["name"] in estimated else []))   # 6th item 1 = fees are an estimate
 
 # compact: campuses and grades as indexes
 campuses = sorted({r[0] for r in caps} | {r[0] for r in leads} | {r[0] for r in deals})
@@ -125,7 +128,7 @@ now = datetime.now(IST)
 out = {"generated": now.strftime("%Y-%m-%dT%H:%M"), "today": now.strftime("%Y-%m-%d"), "campuses": campuses, "grades": grades, "fees": FEES,
        "cap": [[ci(t), gi(g), c, e] for t, g, c, e in caps],
        "leads": [[ci(t), gi(g), a, b, c] for t, g, a, b, c in leads],
-       "deals": [[ci(t), gi(g), a, dt, f] for t, g, a, dt, f in deals]}
+       "deals": [[ci(t), gi(g), *r] for t, g, *r in deals]}
 json.dump(out, open(sys.argv[1] if len(sys.argv) > 1 else "business.json", "w"), separators=(",", ":"))
 rev = sum(p for d in deals for p, _ in d[4]); disc = sum(x for d in deals for _, x in d[4])
 print(f"business: {sum(1 for r in leads if r[2])} leads, {len(deals)} new admissions, revenue {rev:,.0f}, discount {disc:,.0f}, billing {rev - disc:,.0f}")
