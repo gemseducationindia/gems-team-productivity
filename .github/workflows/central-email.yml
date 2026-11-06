@@ -1,0 +1,24 @@
+# Central admissions team daily summary email (central_email.py), Mon-Sat.
+# Started at 7:30 pm IST by a Claude scheduled task (workflow_dispatch, starts within a minute); the schedule below is a
+# backup at 7:45 pm IST in case that start is missed. central_email.py skips sending if the day's email already went out,
+# so the two starts never send twice. Needs secrets CRM_TOKEN ("key:secret"), TT_TO and TT_CC (comma-separated emails).
+name: Central team email
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 14 * * 1-6"   # 19:45 IST
+concurrency: {group: central-email, cancel-in-progress: false}
+permissions: {contents: read}
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python central_email.py --send
+        env:
+          CRM_TOKEN: ${{ secrets.CRM_TOKEN }}
+          TT_TO: ${{ secrets.TT_TO }}
+          TT_CC: ${{ secrets.TT_CC }}
