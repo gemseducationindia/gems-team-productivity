@@ -1,11 +1,11 @@
 """Daily central admissions desk stats email, from the live CRM. Same counting rules as the productivity dashboard (build.py).
 
-Usage: python3 central_email.py [YYYY-MM-DD] [--send]   (date defaults to today IST; without --send it only writes central.html)
+Usage: python3 central_email.py [YYYY-MM-DD] [--send] [--force]   (--send skips if that day's email was already sent; --force sends anyway)   (date defaults to today IST; without --send it only writes central.html)
 - Calls: every CRM Call Log, incoming + outgoing, started 09:00-19:00 IST that day. Incoming calls count for the receiver.
 - Connect = status Completed with duration > 0. Talk time = call durations. Unique dials = distinct numbers.
 - Visits booked / done: the dashboard's central desk visit rules (build.py), for that day.
 Env: CRM_TOKEN or FRAPPE_API_KEY + FRAPPE_API_SECRET; TT_TO, TT_CC (comma-separated).
-Sent daily Mon-Sat 7:30 pm IST by a Claude scheduled task, which sets the recipients.
+Sent Mon-Sat by .github/workflows/central-email.yml (started at 7:30 pm IST by a Claude scheduled task, backup schedule 7:45 pm IST); recipients come from the TT_TO / TT_CC secrets.
 """
 import json, os, subprocess, sys, tempfile, urllib.parse, urllib.request
 from collections import defaultdict
@@ -102,7 +102,11 @@ open(out, "w").write(html); print("wrote", out, "for", D)
 if "--send" in sys.argv:
     to = os.environ.get("TT_TO", "")
     if not to: sys.exit("TT_TO is not set")
-    data = urllib.parse.urlencode({"recipients": to, "cc": os.environ.get("TT_CC", ""), "subject": f"Central Admissions Team: Daily Summary, {DAY.day} {DAY.strftime('%b %Y')}",
+    subject = f"Central Admissions Team: Daily Summary, {DAY.day} {DAY.strftime('%b %Y')}"
+    # send once a day at most: skip if today's email already exists in the CRM (another run or a manual send)
+    if "--force" not in sys.argv and get("Communication", ["name"], [["subject", "=", subject], ["sent_or_received", "=", "Sent"]]):
+        print("already sent today, skipping:", subject); sys.exit(0)
+    data = urllib.parse.urlencode({"recipients": to, "cc": os.environ.get("TT_CC", ""), "subject": subject,
                                    "content": html, "send_email": 1, "sender": os.environ.get("TT_FROM", "admissiondesk@gemsedu.in")}).encode()
     req = urllib.request.Request(f"{HOST}/api/method/frappe.core.doctype.communication.email.make", data=data,
                                  headers={"Authorization": AUTH, "Content-Type": "application/x-www-form-urlencoded"})
