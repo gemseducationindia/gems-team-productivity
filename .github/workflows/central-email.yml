@@ -5,6 +5,8 @@
 name: Central team email
 on:
   workflow_dispatch:
+    inputs:
+      date: {description: "Day to report (YYYY-MM-DD); empty = today IST", required: false, default: ""}
   schedule:
     - cron: "15 14 * * 1-6"   # 19:45 IST
 concurrency: {group: central-email, cancel-in-progress: false}
@@ -17,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
-      - run: python central_email.py --send
+      - run: python central_email.py ${{ inputs.date }} --send
         env:
           CRM_TOKEN: ${{ secrets.CRM_TOKEN }}
           TT_TO: ${{ secrets.TT_TO }}
