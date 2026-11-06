@@ -19,8 +19,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
-      - run: python central_email.py ${{ inputs.date }} --send
+      - run: python central_email.py $REPORT_DATE --send
         env:
+          REPORT_DATE: ${{ inputs.date }}
           CRM_TOKEN: ${{ secrets.CRM_TOKEN }}
           TT_TO: ${{ secrets.TT_TO }}
           TT_CC: ${{ secrets.TT_CC }}
