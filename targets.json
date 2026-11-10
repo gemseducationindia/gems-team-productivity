@@ -1,0 +1,17 @@
+{
+  "_note": "2027-28 season admission targets per campus (Jay, 10 Nov 2026). Campus names must match CRM territories exactly. phasing = % of the annual target in each month, must add to 100.",
+  "season": "2027-28",
+  "phasing": {"2026-11": 15, "2026-12": 20, "2027-01": 25, "2027-02": 20, "2027-03": 10, "2027-04": 10},
+  "targets": {
+    "GEMS Millennium School - Vikhroli": 480,
+    "GEMS Millennium School - Kalyan": 480,
+    "GEMS Modern Academy - Kochi": 130,
+    "GEMS Millennium School - Kochi": 480,
+    "GEMS Modern Academy - Coimbatore": 480,
+    "GEMS Millennium School - Gurugram": 320,
+    "GEMS Millennium School - Indirapuram": 480,
+    "GEMS Millennium School - Varanasi": 480,
+    "GEMS School of Excellence - Lucknow": 480,
+    "GEMS School of Excellence - Jodhpur": 480
+  }
+}
