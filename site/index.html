@@ -141,6 +141,9 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
 #calls { display: block; width: 100%; height: calc(100vh - var(--top-h, 60px)); border: 0; }
 #calls.pre { position: absolute; left: -10000px; top: 0; visibility: hidden; }   /* loading in the background, laid out at full size */
 table.biz { font-size: 12.5px; }
+/* business report: equal-width columns on wide screens (auto widths below 1200px, where long headers need the room); target block (cols 7-11) and billing block set off by a divider */
+@media (min-width: 1200px) { table.biz.even { table-layout: fixed; width: 100%; } table.biz.even th:first-child { width: 160px; } }
+table.biz.even th:nth-child(7), table.biz.even td:nth-child(7), table.biz.even th:nth-child(12), table.biz.even td:nth-child(12) { border-left: 1px solid var(--line); }
 table.biz .behind { color: #C8102E; font-weight: 600; }
 table.biz .ahead { color: #1E7D32; font-weight: 600; }
 table.biz th, table.biz td { padding: 8px 5px; }
@@ -611,8 +614,8 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
       h("button", { class: "ctl" + (REFRESH.busy ? " spin" : ""), disabled: REFRESH.busy, title: "Pull the latest numbers from the CRM", onclick: refreshNow }, svgIcon(ICON.refresh), REFRESH.busy ? "Refreshing…" : "Refresh"));
   }
 
-  function bizTable(first, cols, rows, row) {
-    return h("div", { class: "scroll" }, h("table", { class: "biz" },
+  function bizTable(first, cols, rows, row, cls) {
+    return h("div", { class: "scroll" }, h("table", { class: "biz" + (cls ? " " + cls : "") },
       h("thead", null, h("tr", null, h("th", null, first), cols.map((c) => h("th", null, c)))),
       h("tbody", null, rows.map((r) => h("tr", { class: r.total ? "total" : null }, h("td", null, r.label), row(r).map((v) => h("td", null, v)))))));
   }
@@ -671,7 +674,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
           .concat(["Gross Billing (₹ L)", "Discount Given (₹ L)", "Discount %", "Net Billing (₹ L)"]),
           rows, (r) => [bint(r.leads), bint(r.vd), bint(r.normal), bint(r.rte), bint(r.adm), ...tgtCells(r)]
             .concat(SHOW_CAPACITY ? [bint(r.existing), bint(occ(r)), bint(r.capacity), bpct(occ(r), r.capacity)] : [])
-            .concat([lakh(r.gross) + star(r), lakh(r.disc) + star(r), discPct(r), lakh(r.gross - r.disc) + star(r)])),
+            .concat([lakh(r.gross) + star(r), lakh(r.disc) + star(r), discPct(r), lakh(r.gross - r.disc) + star(r)]), "even"),
           tot.est ? h("p", { class: "note" }, "* Includes estimated fees for " + bint(tot.est) + " admission" + (tot.est > 1 ? "s" : "") + " whose grade has no fee grid in the CRM yet (GMS Kochi Grades 6 and 7). Tuition is taken at the Grade 5 rate of ₹1,75,450 until the grid is added.") : null)),
       h("section", null,
         h("h2", null, "Sales funnel by " + first.toLowerCase()),
