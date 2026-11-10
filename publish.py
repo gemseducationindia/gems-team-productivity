@@ -26,7 +26,7 @@ def biz_subset(b, allowed):
     cmap = {i: n for n, i in enumerate(keep)}
     pick = lambda rows: [[cmap[r[0]], *r[1:]] for r in rows if r[0] in cmap]
     if not keep: return None   # e.g. GMS Raipur, which the Business tab leaves out
-    return dict(b, campuses=[b["campuses"][i] for i in keep], cap=pick(b["cap"]), leads=pick(b["leads"]), deals=pick(b["deals"]))
+    return dict(b, campuses=[b["campuses"][i] for i in keep], cap=pick(b["cap"]), leads=pick(b["leads"]), deals=pick(b["deals"]), tgt=pick(b.get("tgt", [])))
 
 
 def counsellor(d, person):

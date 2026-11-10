@@ -129,6 +129,13 @@ out = {"generated": now.strftime("%Y-%m-%dT%H:%M"), "today": now.strftime("%Y-%m
        "cap": [[ci(t), gi(g), c, e] for t, g, c, e in caps],
        "leads": [[ci(t), gi(g), a, b, c] for t, g, a, b, c in leads],
        "deals": [[ci(t), gi(g), *r] for t, g, *r in deals]}
+# 2027-28 admission targets (targets.json): annual target per campus + monthly phasing; edit that file to change them
+T = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "targets.json")))
+if sum(T["phasing"].values()) != 100: sys.exit("targets.json: phasing must add to 100")
+for t in T["targets"]:
+    if t not in campuses: sys.exit(f"targets.json: {t} is not a Business tab campus")
+out["phase"] = sorted(T["phasing"].items())
+out["tgt"] = [[ci(t), n] for t, n in T["targets"].items()]
 json.dump(out, open(sys.argv[1] if len(sys.argv) > 1 else "business.json", "w"), separators=(",", ":"))
 rev = sum(p for d in deals for p, _ in d[4]); disc = sum(x for d in deals for _, x in d[4])
 print(f"business: {sum(1 for r in leads if r[2])} leads, {len(deals)} new admissions, revenue {rev:,.0f}, discount {disc:,.0f}, billing {rev - disc:,.0f}")

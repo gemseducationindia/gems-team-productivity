@@ -141,6 +141,8 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
 #calls { display: block; width: 100%; height: calc(100vh - var(--top-h, 60px)); border: 0; }
 #calls.pre { position: absolute; left: -10000px; top: 0; visibility: hidden; }   /* loading in the background, laid out at full size */
 table.biz { font-size: 12.5px; }
+table.biz .behind { color: #C8102E; font-weight: 600; }
+table.biz .ahead { color: #1E7D32; font-weight: 600; }
 table.biz th, table.biz td { padding: 8px 5px; }
 table.biz thead th { min-width: 0; font-size: 11.5px; }
 table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left: 12px; }
@@ -557,12 +559,31 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
       const order = D.biz.campuses.map((_, i) => i).sort((x, y) => short(D.biz.campuses[x]).localeCompare(short(D.biz.campuses[y])));
       for (const c of order) rows.push(Object.assign(sumCells(cs.filter((x) => x.c === c)), { label: short(D.biz.campuses[c]) }));
       rows.push(Object.assign(sumCells(cs), { label: D.role === "corporate" ? "Total (all campuses)" : "Total", total: true }));
+      rows.forEach((r, n) => { r.tgt = r.total ? tgtOf(D.biz.campuses.map((_, i) => i)) : tgtOf([order[n]]); });
     } else {
       const mine = S.bview === "total" ? cs : cs.filter((x) => x.c === +S.bview);
       D.biz.grades.forEach((g, gi) => rows.push(Object.assign(sumCells(mine.filter((x) => x.g === gi)), { label: glabel(g) })));
-      rows.push(Object.assign(sumCells(mine), { label: "Total", total: true }));
+      rows.push(Object.assign(sumCells(mine), { label: "Total", total: true, tgt: tgtOf(S.bview === "total" ? D.biz.campuses.map((_, i) => i) : [+S.bview]) }));
     }
     return rows.filter(keep);
+  }
+  // 2027-28 targets (targets.json): annual target per campus, target to date = finished months + today's share of this month
+  function tgtOf(cs) {
+    const T = new Map(D.biz.tgt || []), ph = D.biz.phase || [], t = D.biz.today, ym = t.slice(0, 7);
+    const dim = new Date(+t.slice(0, 4), +t.slice(5, 7), 0).getDate(), frac = (m) => (m < ym ? 1 : m === ym ? +t.slice(8, 10) / dim : 0);
+    const share = ph.reduce((a, [m, p]) => a + (p / 100) * frac(m), 0), left = ph.filter(([m]) => m >= ym).length;
+    let target = 0, todate = 0, any = false;
+    for (const c of cs) if (T.has(c)) { any = true; target += T.get(c); todate += Math.round(T.get(c) * share); }
+    return any ? { target, todate, left } : null;
+  }
+  const SHOW_CAPACITY = false;   // carry forward / net / capacity / utilisation columns hidden for now (Jay, 10 Nov 2026); data still built
+  function tgtCells(r) {
+    const t = r.tgt;
+    if (!t) return ["–", "–", "–", "–", "–"];
+    const gap = t.todate - r.all, need = Math.max(0, t.target - r.all);
+    return [bint(t.target), bpct(r.all, t.target), bint(t.todate),
+      gap > 0 ? h("span", { class: "behind" }, bint(gap)) : h("span", { class: "ahead" }, gap < 0 ? "+" + bint(-gap) : "0"),
+      t.left ? bint(Math.ceil(need / t.left)) : "–"];
   }
   // rounding as MariaDB does it in the Insights query: half up, count ratios to 4 decimals first, then to the shown decimals
   function rhu(num, den) { let q = Math.floor(num / den), r = num - q * den; if (r < 0) { q--; r += den; } if (r >= den) { q++; r -= den; } return 2 * r >= den ? q + 1 : q; }
@@ -645,9 +666,12 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
       h("section", null,
         h("h2", null, "Business report by " + first.toLowerCase(), h("span", null, "₹ L = lakh")),
         h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Walk-Ins", "New Admissions (Normal)", "New Admissions (RTE)", "Total New Admissions",
-          "Admissions (Carry Forwards)", "Net Total Admission", "Current Capacity", "Capacity Utilization %", "Gross Billing (₹ L)", "Discount Given (₹ L)", "Discount %", "Net Billing (₹ L)"],
-          rows, (r) => [bint(r.leads), bint(r.vd), bint(r.normal), bint(r.rte), bint(r.adm), bint(r.existing), bint(occ(r)), bint(r.capacity),
-            bpct(occ(r), r.capacity), lakh(r.gross) + star(r), lakh(r.disc) + star(r), discPct(r), lakh(r.gross - r.disc) + star(r)]),
+          "Target", "% Ach", "Target to Date", "Gap", "Needed / Month"]
+          .concat(SHOW_CAPACITY ? ["Admissions (Carry Forwards)", "Net Total Admission", "Current Capacity", "Capacity Utilization %"] : [])
+          .concat(["Gross Billing (₹ L)", "Discount Given (₹ L)", "Discount %", "Net Billing (₹ L)"]),
+          rows, (r) => [bint(r.leads), bint(r.vd), bint(r.normal), bint(r.rte), bint(r.adm), ...tgtCells(r)]
+            .concat(SHOW_CAPACITY ? [bint(r.existing), bint(occ(r)), bint(r.capacity), bpct(occ(r), r.capacity)] : [])
+            .concat([lakh(r.gross) + star(r), lakh(r.disc) + star(r), discPct(r), lakh(r.gross - r.disc) + star(r)])),
           tot.est ? h("p", { class: "note" }, "* Includes estimated fees for " + bint(tot.est) + " admission" + (tot.est > 1 ? "s" : "") + " whose grade has no fee grid in the CRM yet (GMS Kochi Grades 6 and 7). Tuition is taken at the Grade 5 rate of ₹1,75,450 until the grid is added.") : null)),
       h("section", null,
         h("h2", null, "Sales funnel by " + first.toLowerCase()),
@@ -659,6 +683,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
         h("summary", null, "How these numbers are counted"),
         h("p", null, "Live from the CRM; tests and duplicates excluded; GMS Raipur left out. ", h("b", null, "Period"), " filters leads (enquiry date), visits (visit date), new admissions and billing (blocking fee date). Admissions (Carry Forwards), Net Total Admission, Current Capacity, Capacity Utilization % and the seats chart always show the position as of today."),
         h("p", null, h("b", null, "New admissions"), " = Blocking Fee Paid or Enrolled, Normal / RTE from the application. ", h("b", null, "Net Total Admission"), " = carry forward + all new admissions (transfer cases will be deducted once ERP data is linked)."),
+        h("p", null, h("b", null, "Targets 2027-28"), " come from the season targets, phased Nov 15%, Dec 20%, Jan 25%, Feb 20%, Mar 10%, Apr 10%. They always use all new admissions so far (every admission before November counts), whatever the period. ", h("b", null, "% Ach"), " = new admissions ÷ annual target. ", h("b", null, "Target to Date"), " = targets of finished months plus today's share of this month. ", h("b", null, "Gap"), " = target to date − new admissions (red = behind, green + = ahead). ", h("b", null, "Needed / Month"), " = admissions still needed for the annual target ÷ months left including this one. Grade rows show – because targets are set per campus."),
         h("p", null, h("b", null, "Gross Billing"), " = published application, blocking, tuition and annual fees on every application, plus prospectus where ticked; ", h("b", null, "Discount Given"), " = discounts on those fees; ", h("b", null, "Net Billing"), " = net payable after discount (published − discount), not collections."),
         h("p", null, h("b", null, "Funnel"), ": Lead to Visit Booked % = visits booked ÷ leads, Visit Booked to Visit Done % = visits done ÷ visits booked, Visit Done to Admission % = new admissions ÷ visits done, Lead to Admission % = new admissions ÷ leads."),
         h("p", null, "Capacity and carry forward come from the operations capacity file. The data refreshes every hour; Refresh pulls it again now."))

@@ -9,6 +9,7 @@ each school manager's login sees only the School tab for their campuses: https:/
 
 - `build.py` pulls users, campus permissions, all calls (incoming + outgoing), leads, open assignments and visits from the CRM and writes
   `productivity.json` (first names and counts only, no lead names or numbers). The rules are at the top of the file.
+- `targets.json` holds the 2027-28 admission target per campus and the monthly phasing; the Business tab shows Target, % Ach, Target to Date, Gap and Needed / Month from it. Edit it to change a target.
 - `business.py` pulls leads, visits, new admissions and their fee rows and writes `business.json` (Business tab, Corporate only).
   Capacity and carry forward are read from the capacities CTE in Insights query `br59hj57ib`, so edit them there.
 - `publish.py productivity.json _site business.json` copies `site/` and writes one encrypted file per login, holding only that login's data.
