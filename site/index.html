@@ -146,6 +146,9 @@ table.biz { font-size: 12.5px; }
 table.biz.even th:nth-child(7), table.biz.even td:nth-child(7), table.biz.even th:nth-child(10), table.biz.even td:nth-child(10) { border-left: 1px solid var(--line); }
 table.biz th, table.biz td { padding: 8px 5px; }
 table.biz thead th { min-width: 0; font-size: 11.5px; }
+table.split th, table.split td { padding: 8px 5px; }
+table.split td { font-size: 12.5px; }
+table.split thead th { min-width: 0; }
 table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left: 12px; }
 .seats { padding: 14px 16px 12px; display: grid; gap: 10px; }
 .seats h3 { font-size: 14px; font-weight: 600; margin: 0; }
@@ -518,11 +521,11 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
   // ---------- numbers ----------
   // calling + visits for a set of people over the period; days = completed calling days (before today, with dials)
   function calling(set, a, b) {
-    const r = { dials: 0, connects: 0, talk: 0, fdials: 0, ftalk: 0, days: new Set(), sched: 0, done: 0 };
+    const r = { dials: 0, connects: 0, talk: 0, inc: 0, intalk: 0, fdials: 0, ftalk: 0, days: new Set(), sched: 0, done: 0 };
     const nums = new Set();   // distinct numbers dialled = leads called
-    for (const [d, p, dials, conn, talk, called] of D.days) {
+    for (const [d, p, dials, conn, talk, called, inc, intalk] of D.days) {
       if (!set.has(p) || d < a || d > b) continue;
-      r.dials += dials; r.connects += conn; r.talk += talk;
+      r.dials += dials; r.connects += conn; r.talk += talk; r.inc += inc || 0; r.intalk += intalk || 0;
       for (const n of called || []) nums.add(n);
       if (d < D.today) { r.fdials += dials; r.ftalk += talk; if (dials > 0) r.days.add(d); }
     }
@@ -565,7 +568,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
     return [...by.entries()].sort((x, y) => short(D.campuses[x[0]]).localeCompare(short(D.campuses[y[0]]))).map(([c, l]) => [short(D.campuses[c]), l]);
   }
 
-  function table(cols, gs, row) {
+  function table(cols, gs, row, cls) {
     // one block per group: its people, then a Team total row; a grand total row when there are several groups
     const body = [];
     const all = new Set();
@@ -579,7 +582,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
     }
     if (gs.length > 1) body.push(h("tr", { class: "grand" }, h("td", null, "All campuses"), row(all)));
     if (!body.length) return h("div", { class: "empty" }, "No counsellors to show.");
-    return h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", null, "Counsellor"), cols.map((c) => h("th", null, c)))), h("tbody", null, body)));
+    return h("div", { class: "scroll" }, h("table", cls ? { class: cls } : null, h("thead", null, h("tr", null, h("th", null, "Counsellor"), cols.map((c) => h("th", null, c)))), h("tbody", null, body)));
   }
 
   function lineChart(gs, a, b) {
@@ -1174,12 +1177,20 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
           kpi("Talk time", hm(tot.talk)), kpi("Visits scheduled", int(tot.sched)), kpi("Visits done", int(tot.done)))),
       h("section", null,
         h("h2", null, "Productivity by counsellor", h("span", null, "per-day figures average over completed calling days")),
-        h("div", { class: "panel" }, table(["Days", "Dials", "Dials / day", "Unique leads", "Avg dials / lead", "Avg connects / lead", "Connect rate", "Talk time", "Talk time / day", "Visits sched.", "Visits done"], gs, (set) => {
-          const r = calling(set, a, b);
-          return [cell(r.nd ? int(r.nd) : null), cell(int(r.dials)), cell(r.nd ? (r.fdials / r.nd).toFixed(1) : null),
-            cell(int(r.leads)), cell(r.leads ? (r.dials / r.leads).toFixed(2) : null), cell(r.leads ? (r.connects / r.leads).toFixed(2) : null), cell(pct(r.connects, r.dials)),
-            cell(hm(r.talk)), cell(r.nd ? hm(r.ftalk / r.nd) : null), cell(int(r.sched)), cell(int(r.done))];
-        }))),
+        h("div", { class: "panel" }, isC
+          // central desk: calls and talk time split into incoming / outbound / total, as in the daily email
+          ? table(["Days", "Incoming calls", "Outbound dials", "Total calls", "Dials / day", "Unique leads", "Avg dials / lead", "Avg connects / lead", "Connect rate", "Incoming talk time", "Outbound talk time", "Total talk time", "Talk time / day", "Visits sched.", "Visits done"], gs, (set) => {
+            const r = calling(set, a, b);
+            return [cell(r.nd ? int(r.nd) : null), cell(int(r.inc)), cell(int(r.dials - r.inc)), cell(int(r.dials)), cell(r.nd ? (r.fdials / r.nd).toFixed(1) : null),
+              cell(int(r.leads)), cell(r.leads ? (r.dials / r.leads).toFixed(2) : null), cell(r.leads ? (r.connects / r.leads).toFixed(2) : null), cell(pct(r.connects, r.dials)),
+              cell(hm(r.intalk)), cell(hm(r.talk - r.intalk)), cell(hm(r.talk)), cell(r.nd ? hm(r.ftalk / r.nd) : null), cell(int(r.sched)), cell(int(r.done))];
+          }, "split")
+          : table(["Days", "Dials", "Dials / day", "Unique leads", "Avg dials / lead", "Avg connects / lead", "Connect rate", "Talk time", "Talk time / day", "Visits sched.", "Visits done"], gs, (set) => {
+            const r = calling(set, a, b);
+            return [cell(r.nd ? int(r.nd) : null), cell(int(r.dials)), cell(r.nd ? (r.fdials / r.nd).toFixed(1) : null),
+              cell(int(r.leads)), cell(r.leads ? (r.dials / r.leads).toFixed(2) : null), cell(r.leads ? (r.connects / r.leads).toFixed(2) : null), cell(pct(r.connects, r.dials)),
+              cell(hm(r.talk)), cell(r.nd ? hm(r.ftalk / r.nd) : null), cell(int(r.sched)), cell(int(r.done))];
+          }))),
       h("section", null,
         h("h2", null, "Lead book", h("span", null, "open assignments right now, junk left out")),
         h("div", { class: "kpis" },
@@ -1198,7 +1209,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
         }))),
       h("details", { class: "defs" },
         h("summary", null, "How these numbers are counted"),
-        h("p", null, h("b", null, "Period"), ": Today is live; Last 7 days includes today. ", h("b", null, "Dials"), " = all calls, incoming + outgoing; ", h("b", null, "talk time"), " = incoming + outgoing call time. ", h("b", null, "Connect"), " = completed call with talk time; connect rate = connects ÷ dials. ",
+        h("p", null, h("b", null, "Period"), ": Today is live; Last 7 days includes today. ", h("b", null, "Dials"), " = all calls, incoming + outgoing; ", h("b", null, "talk time"), " = incoming + outgoing call time", isC ? " (the counsellor table also shows incoming calls and outbound dials, and incoming and outbound talk time, separately)" : "", ". ", h("b", null, "Connect"), " = completed call with talk time; connect rate = connects ÷ dials. ",
           h("b", null, "Unique leads"), " = different numbers called or calling in during the period; ", h("b", null, "avg dials / connects per lead"), " = dials or connects ÷ unique leads (the team total counts a lead called by two counsellors once). ", h("b", null, "Days"), " = completed calling days (before today, with at least one dial); per-day figures average over those days, so they stay blank for Today."),
         h("p", null, isC
           ? "Central desk = users with the GEMS Central Counsellor role (admins left out). A counsellor is credited for leads they own or are assigned to, so a lead shared by two counsellors shows on both their rows but counts once in every total."

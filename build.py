@@ -95,11 +95,11 @@ calls = []   # one row per call: who (counsellor), num (the other party), status
 for c in get("CRM Call Log", ["type", "caller", "receiver", "from", "to", "status", "duration", "start_time"]):
     out = c["type"] == "Outgoing"
     calls.append({"caller": c["caller"] if out else c["receiver"], "to": c["to"] if out else (c["from"] or c["caller"]),
-                  "status": c["status"], "duration": c["duration"], "start_time": c["start_time"]})
+                  "status": c["status"], "duration": c["duration"], "start_time": c["start_time"], "in": not out})
 # a lead with any call linked to it (incoming too) is not untouched, as in Insights
 linked = {c["reference_docname"] for c in get("CRM Call Log", ["reference_docname"], [["reference_doctype", "=", "CRM Lead"], ["reference_docname", "is", "set"]])}
 dialled = set()
-agg = defaultdict(lambda: [0, 0, 0, set()])   # (date, person) -> dials, connects, talk seconds, numbers dialled
+agg = defaultdict(lambda: [0, 0, 0, set(), 0, 0])   # (date, person) -> dials, connects, talk seconds, numbers dialled, incoming calls, incoming talk seconds
 num_id = {}                                    # number -> anonymous id, so per-lead averages can count distinct numbers
 for c in calls:
     dialled.add((c["to"] or "")[-10:])   # RIGHT(to, 10), as in Insights
@@ -113,7 +113,8 @@ for c in calls:
     for p in targets:
         a = agg[(d, p)]; a[0] += 1; a[1] += 1 if c["status"] == "Completed" and (c["duration"] or 0) > 0 else 0; a[2] += int(c["duration"] or 0)
         a[3].add(num_id.setdefault((c["to"] or "")[-10:], len(num_id)))
-days = sorted([d, p, v[0], v[1], v[2], sorted(v[3])] for (d, p), v in agg.items())
+        if c["in"]: a[4] += 1; a[5] += int(c["duration"] or 0)
+days = sorted([d, p, v[0], v[1], v[2], sorted(v[3]), v[4], v[5]] for (d, p), v in agg.items())   # outbound = total - incoming
 
 # ---- leads, owners and visits ----
 todos = get("ToDo", ["reference_name", "allocated_to"], [["reference_type", "=", "CRM Lead"], ["status", "=", "Open"]])
