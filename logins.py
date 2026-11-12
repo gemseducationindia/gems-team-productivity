@@ -71,7 +71,7 @@ def add(name, scope, password=None, person=None):
     d[u] = {"campuses": campuses, "iter": 600000, "salt": b64(salt), "key": b64(iv + AESGCM(kek).encrypt(iv, inner, None)),
             "pub": b64(spki), "file": "d-" + u[:16] + ".enc"}
     if person: d[u]["person"] = person_id(person)   # hashed, so the public file doesn't name the counsellor
-    if admins(d): d[u]["meta"] = seal_meta(d, {"name": name.strip(), "pk": b64(pkcs8)})
+    if admins(d): d[u]["meta"] = seal_meta(d, {"name": name.strip(), "pk": b64(pkcs8), "pw": password})   # admins see it in the Users tab
     save(d)
     sees = "all campuses" if campuses == "all" else "the Central desk tab (whole desk)" if campuses == "central" else f"own Central desk numbers and calls ({person})" if person else ", ".join(campuses)
     print(f"Login: {name.strip()}\nPassword: {password}\nSees: {sees}")
@@ -101,7 +101,9 @@ if __name__ == "__main__":
         inner = AESGCM(old).decrypt(kb[:12], kb[12:], None)
         salt, iv = secrets.token_bytes(16), secrets.token_bytes(12)
         new = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=600000).derive(sys.argv[4].encode())
-        e.update(salt=b64(salt), iter=600000, key=b64(iv + AESGCM(new).encrypt(iv, inner, None))); save(d); print("password changed")
+        e.update(salt=b64(salt), iter=600000, key=b64(iv + AESGCM(new).encrypt(iv, inner, None)))
+        if admins(d): i = json.loads(inner); e["meta"] = seal_meta(d, {"name": i["name"], "pk": i["pk"], "pw": sys.argv[4]})
+        save(d); print("password changed")
     elif cmd == "business":
         d = load(); e = d.get(uid(sys.argv[2]))
         if not e: sys.exit("no such login")
