@@ -35,6 +35,17 @@ Central desk tab for the whole desk, opening on Today, and no Call audit tab. Th
 It prints the new password. Use `--password "..."` to choose one, `python logins.py remove "name@gemsedu.in"` to remove a login,
 and `python logins.py add` again with the same name to reset a password.
 
+## Users tab (admins)
+
+Admin logins (Corporate, `python logins.py admin NAME on`) get a **Users** tab to add users, change what they can see, set
+passwords and remove them, right in the dashboard. It saves `logins.json` to `main` through the GitHub API with a fine-grained
+token (this repo only; Contents and Actions read and write) that an admin pastes once; the token is stored encrypted to each
+admin's key, like the dispatch token. Each login's `meta` holds its name and private key sealed to the admins' keys, so admins
+see logins by name and a password reset keeps the key pair (the Call audit tab keeps working). Password changes and removals
+also patch the published `users.json` at once; every change then starts `refresh.yml` so new users go live in about two minutes,
+and the scheduled refresh picks them up anyway. Logins made before the Users tab have no stored private key: their first reset
+from the Users tab makes a new key pair (live after the refresh; their Call audit tab returns after the next call audit publish).
+
 ## Refresh button
 
 Every login's Refresh button loads the newest published copy. For Corporate it also starts `refresh.yml`, which pulls the CRM
