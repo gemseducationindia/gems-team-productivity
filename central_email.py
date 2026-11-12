@@ -2,6 +2,7 @@
 
 Usage: python3 central_email.py [YYYY-MM-DD] [--send] [--force]   (--send skips if that day's email was already sent; --force sends anyway)   (date defaults to today IST; without --send it only writes central.html)
 - Calls: every CRM Call Log, incoming + outgoing, started 09:00-19:00 IST that day. Incoming calls count for the receiver.
+- Incoming calls / outbound dials and incoming / outbound talk time are shown separately, plus the totals.
 - Connect = status Completed with duration > 0. Talk time = call durations. Unique dials = distinct numbers.
 - Visits booked / done: the dashboard's central desk visit rules (build.py), for that day.
 Env: CRM_TOKEN or FRAPPE_API_KEY + FRAPPE_API_SECRET; TT_TO, TT_CC (comma-separated).
@@ -38,7 +39,7 @@ pid = {u: i for i, p in enumerate(P["people"]) if p["t"] == "c" for u in central
 
 calls = get("CRM Call Log", ["type", "caller", "receiver", "from", "to", "status", "duration"],
             [["start_time", ">=", f"{D} 09:00:00"], ["start_time", "<", f"{D} 19:00:00"]])
-S = lambda: {"dials": 0, "conn": 0, "tt": 0, "nums": set()}
+S = lambda: {"dials": 0, "conn": 0, "tt": 0, "nums": set(), "in": 0, "out": 0, "tt_in": 0, "tt_out": 0}
 st = defaultdict(S)
 for c in calls:
     out = c["type"] == "Outgoing"
@@ -47,6 +48,7 @@ for c in calls:
     du = int(c["duration"] or 0)
     for k in (who, "team"):
         a = st[k]; a["dials"] += 1; a["tt"] += du; a["conn"] += 1 if c["status"] == "Completed" and du > 0 else 0
+        d = "out" if out else "in"; a[d] += 1; a["tt_" + d] += du
         a["nums"].add((num or "")[-10:])
 
 vb, vd = defaultdict(set), defaultdict(set)
@@ -63,8 +65,12 @@ def hm(sec):
     return f"{m // 60}h {m % 60:02d}m" if m >= 60 else f"{m}m"
 pct = lambda a, b: f"{a / b * 100:.0f}%" if b else "–"
 avg = lambda a, b: f"{a / b:.1f}" if b else "–"
-ROWS = [("Total dials", lambda a, k: str(a["dials"])),
+ROWS = [("Incoming calls", lambda a, k: str(a["in"])),
+        ("Outbound dials", lambda a, k: str(a["out"])),
+        ("Total calls", lambda a, k: str(a["dials"])),
         ("Connect %", lambda a, k: pct(a["conn"], a["dials"])),
+        ("Incoming talk time", lambda a, k: hm(a["tt_in"])),
+        ("Outbound talk time", lambda a, k: hm(a["tt_out"])),
         ("Total talk time", lambda a, k: hm(a["tt"])),
         ("Unique leads", lambda a, k: str(len(a["nums"]))),
         ("Visits booked", lambda a, k: str(len(vb[k]))),
@@ -74,19 +80,20 @@ name = lambda k: "Central team" if k == "team" else full[k]
 cell = 'padding:9px 10px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap'
 head = ('<tr style="background:#1b2a5c;color:#ffffff">'
         '<th style="padding:9px 10px;text-align:left;font-weight:600">Counsellor</th>'
-        + "".join(f'<th style="padding:9px 10px;text-align:right;font-weight:600">{label}</th>' for label, _ in ROWS) + "</tr>")
+        + "".join(f'<th style="padding:9px 10px;text-align:right;font-weight:600;vertical-align:bottom">{label}</th>' for label, _ in ROWS) + "</tr>")
 def tr(k):
     bold = k == "team"
     bg = "#f3f4f6" if bold else "#ffffff"
     w = "font-weight:700;" if bold else ""
     return (f'<tr style="background:{bg}"><td style="padding:9px 10px;border-bottom:1px solid #e5e7eb;text-align:left;white-space:nowrap;{w}">{name(k)}</td>'
             + "".join(f'<td style="{cell};{w}">{fn(st[k], k)}</td>' for _, fn in ROWS) + "</tr>")
-table = f'<table style="border-collapse:collapse;font-size:13px;width:100%;max-width:900px">{head}{"".join(tr(k) for k in rows)}</table>'
+table = f'<table style="border-collapse:collapse;font-size:13px;width:100%;max-width:1100px">{head}{"".join(tr(k) for k in rows)}</table>'
 
 t = st["team"]
 dtext = f"{DAY.day} {DAY.strftime('%B %Y')}"
-summary = (f"Between 9 am and 7 pm the team handled <b>{t['dials']} calls</b> across <b>{len(t['nums'])} unique leads</b>, "
-           f"connected on <b>{pct(t['conn'], t['dials'])}</b> of them and logged <b>{hm(t['tt'])}</b> of talk time. "
+summary = (f"Between 9 am and 7 pm the team handled <b>{t['dials']} calls</b> (<b>{t['in']}</b> incoming, <b>{t['out']}</b> outbound dials) across <b>{len(t['nums'])} unique leads</b>, "
+           f"connected on <b>{pct(t['conn'], t['dials'])}</b> of them and logged <b>{hm(t['tt'])}</b> of talk time "
+           f"(<b>{hm(t['tt_in'])}</b> incoming, <b>{hm(t['tt_out'])}</b> outbound). "
            f"<b>{len(vb['team'])}</b> visit{'s were' if len(vb['team']) != 1 else ' was'} booked and <b>{len(vd['team'])}</b> completed during the day.")
 html = f"""<div style="font-family:Segoe UI,Arial,sans-serif;color:#111827;font-size:14px;line-height:1.55">
 <p>Dear Team,</p>
