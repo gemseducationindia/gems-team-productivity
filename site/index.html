@@ -181,7 +181,9 @@ svg.ui { width: 15px; height: 15px; flex: none; }
 .av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600; flex: none; background: var(--soft); color: var(--ink-2); }
 .av.adm { background: var(--navy); color: #fff; } .av.all { background: #E3E9F4; color: var(--navy); } .av.central, .av.counsellor { background: #E2F4F9; color: var(--cyan-ink); } .av.school { background: #F6EFE1; color: #7a5c1c; }
 .nm { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; word-break: break-word; }
-.kd { font-size: 12px; color: var(--muted); }
+.kd { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.pwv { display: inline-flex; align-items: center; gap: 6px; } .pwv code { font: 600 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); background: var(--soft); padding: 1px 6px; border-radius: 5px; user-select: all; }
+.pwv .link { font-size: 12px; padding: 0; } .pwv.none { font-style: italic; }
 .tag { display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 980px; background: var(--soft); color: var(--ink-2); }
 .tag.adm { background: var(--navy); color: #fff; }
 .sees { display: grid; gap: 6px; min-width: 0; }
@@ -875,9 +877,9 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
 
   async function loadUsers() {
     U.logins = GH ? (await ghRead("logins.json", "main")).json : await (await fetch(`https://raw.githubusercontent.com/${REPO}/main/logins.json?t=${Date.now()}`, { cache: "no-store" })).json();
-    U.names = { [SESS.u]: ME.name }; U.keys = {};
+    U.names = { [SESS.u]: ME.name }; U.keys = {}; U.pw = {}; U.show = {};
     for (const [u, e] of Object.entries(U.logins)) {
-      try { const m = await openMeta(e.meta); if (m) { U.names[u] = m.name; if (m.pk) U.keys[u] = m.pk; } } catch (err) {}
+      try { const m = await openMeta(e.meta); if (m) { U.names[u] = m.name; if (m.pk) U.keys[u] = m.pk; if (m.pw) U.pw[u] = m.pw; } } catch (err) {}
     }
   }
   const access = (e) => e.campuses === "all" ? "Everything (all tabs, all campuses)" : e.campuses === "central" ? "Central desk tab, whole desk"
@@ -916,9 +918,9 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
     const kp = await newKeyPair(), sealed = await sealKey(name, kp.pk, pass);
     await saveLogins(async (L) => {
       if (L[u]) throw new Error(`There is already a login called ${name}`);
-      L[u] = Object.assign({ campuses: sc.campuses, pub: kp.pub, file: "d-" + u.slice(0, 16) + ".enc", meta: await sealMeta(L, { name, pk: kp.pk }) }, sealed.fields, sc.business ? { business: true } : {});
+      L[u] = Object.assign({ campuses: sc.campuses, pub: kp.pub, file: "d-" + u.slice(0, 16) + ".enc", meta: await sealMeta(L, { name, pk: kp.pk, pw: pass }) }, sealed.fields, sc.business ? { business: true } : {});
     }, `Add login (Users tab)`);
-    U.names[u] = name; U.keys[u] = kp.pk;
+    U.names[u] = name; U.keys[u] = kp.pk; U.pw[u] = pass;
     const ok = await startRefresh();
     U.view = "list"; U.newPass = { name, pass };
     U.msg = `Added ${name}. ${liveNote(ok)} Share the password below with them; it isn't shown again.`;
@@ -947,9 +949,10 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
     await saveLogins(async (L) => {
       const e = L[u]; if (!e) throw new Error("That login was removed");
       Object.assign(e, sealed.fields);
-      if (fresh) { e.pub = fresh.pub; e.meta = await sealMeta(L, { name, pk }); }
+      if (fresh) e.pub = fresh.pub;
+      e.meta = await sealMeta(L, { name, pk, pw: pass });   // the admin can look the password up later
     }, `Reset a password (Users tab)`);
-    U.keys[u] = pk;
+    U.keys[u] = pk; U.pw[u] = pass;
     const live = await patchPublished((idx) => { if (fresh) delete idx[u]; else if (idx[u]) Object.assign(idx[u], sealed.fields); });
     const ok = await startRefresh();
     if (self) { SESS.k = toB64(sealed.raw); if (store.get()) store.set(SESS); }
@@ -1037,11 +1040,11 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
     if (kind === "counsellor") opts.unshift(card("counsellor", "Counsellor", "One central counsellor's own numbers (keep as is)"));
     return h("div", { class: "fld" }, h("span", { class: "lbl" }, "What they can see"), h("div", { class: "opts" }, opts), campBox);
   }
-  const passField = (val, self) => {
-    const inp = h("input", { type: "text", name: "upass", value: val, autocomplete: "new-password", spellcheck: "false", placeholder: self ? "New password" : "" });
+  const passField = (val, hint) => {
+    const inp = h("input", { type: "text", name: "upass", value: val || "", autocomplete: "new-password", spellcheck: "false", placeholder: "Type a password" });
     return h("label", { class: "fld" }, h("span", { class: "lbl" }, "Password"),
-      h("div", { class: "row" }, inp, self ? null : h("button", { type: "button", class: "btn", onclick: () => { inp.value = genPassword(); } }, "Suggest another")),
-      h("small", { class: "hint" }, "8 characters or more."));
+      h("div", { class: "row" }, inp, h("button", { type: "button", class: "btn", onclick: () => { inp.value = genPassword(); inp.focus(); } }, "Suggest one")),
+      h("small", { class: "hint" }, hint || "8 characters or more."));
   };
   const closeModal = () => { U.view = "list"; U.msg = null; renderUsers(); };
   function modal(title, sub, fields, submit, label) {
@@ -1125,7 +1128,9 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
       return h("div", { class: "urow" + (me ? " me" : "") },
         h("div", { class: "who2" }, h("span", { class: "av " + (r.e.admin ? "adm" : r.kind) }, initials(r.name)),
           h("div", null, h("div", { class: "nm" }, r.name, r.e.admin ? h("span", { class: "tag adm" }, "Admin") : null, me ? h("span", { class: "tag" }, "You") : null),
-            h("div", { class: "kd" }, KIND[r.kind]))),
+            h("div", { class: "kd" }, KIND[r.kind], " · ", U.pw[r.u]
+              ? h("span", { class: "pwv" }, U.show[r.u] ? h("code", null, U.pw[r.u]) : "••••••••", h("button", { class: "link", onclick: () => { U.show[r.u] = !U.show[r.u]; renderUsers(); } }, U.show[r.u] ? "Hide" : "Show password"))
+              : h("span", { class: "pwv none", title: "Set before passwords were saved here. Set a new one to see it." }, "Password not on record")))),
         h("div", { class: "sees" }, sees(r)),
         h("div", { class: "acts" }, acts));
     });
@@ -1136,12 +1141,13 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
 
     if (GH && U.view === "add") parts.push(modal("Add a user", "They sign in with this username and password.", [
       h("label", { class: "fld" }, h("span", { class: "lbl" }, "Username"), h("input", { type: "text", name: "uname", autocomplete: "off", autocapitalize: "none", spellcheck: "false", placeholder: "e.g. name@gemsedu.in or Vikhroli" })),
-      passField(genPassword()), scopeFields(null)], addUser, "Add user"));
+      passField(""), scopeFields(null)], addUser, "Add user"));
     else if (GH && U.view === "edit") parts.push(modal("Change access", U.names[U.edit] || "", [scopeFields(U.logins[U.edit])], (f) => editUser(U.edit, f), "Save changes"));
     else if (GH && U.view === "pass") {
       const self = U.edit === SESS.u;
-      parts.push(modal(self ? "Change your password" : "Set a new password", self ? "" : (U.names[U.edit] || "") + " · their old password stops working when you save",
-        [passField(self ? "" : genPassword(), self)], (f) => resetPassword(U.edit, f.querySelector("[name=upass]").value), "Save password"));
+      const cur = U.pw[U.edit];
+      parts.push(modal(self ? "Your password" : "Password", (U.names[U.edit] || "") + (cur ? " · this is the current password; change it and save to set a new one" : ""),
+        [passField(cur, cur ? "Saving a different password stops the old one working straight away." : "The current password isn't on record (it was set before passwords were saved here). Type a new one to replace it; from then on it shows here.")], (f) => resetPassword(U.edit, f.querySelector("[name=upass]").value), "Save password"));
     }
     $("#page").replaceChildren(h("section", { class: "users-page" }, ...parts));
   }
