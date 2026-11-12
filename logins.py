@@ -10,6 +10,10 @@
     python logins.py list
     python logins.py business "dip.kumar@gemsedu.in" on     # also show the Business tab, for the login's campuses only
     python logins.py dispatch-token "github_pat_..."   # lets Corporate's Refresh button start a CRM pull (see README)
+    python logins.py admin "Corporate" on      # an admin login gets the Users tab: add, edit and remove logins in the dashboard
+
+Admins can also manage logins in the dashboard itself (Users tab). Each login carries a "meta" record encrypted to every admin's
+public key: its name and its private key, so an admin can list logins by name and reset a password without changing the key pair.
 
 Each login gets its own RSA key pair. The public key is stored as is; the private key is stored encrypted with a key derived from
 the password (PBKDF2-SHA256, 600k iterations, AES-256-GCM). The refresh job encrypts each login's data with its public key, so
@@ -39,6 +43,17 @@ def save(d): json.dump(d, open(FILE, "w"), indent=1, sort_keys=True); open(FILE,
 person_id = lambda email: hashlib.sha256(("gems-productivity:person:" + email.split("@")[0].strip().lower()).encode()).hexdigest()[:16]
 
 
+def admins(d): return {u: serialization.load_der_public_key(base64.b64decode(e["pub"])) for u, e in d.items() if e.get("admin")}
+
+
+def seal_meta(d, info):
+    # {"w": {admin uid: RSA-OAEP(k)}, "c": iv + AES-GCM(k, json)}: only an admin's password opens it (dashboard Users tab)
+    from cryptography.hazmat.primitives.asymmetric import padding
+    k, iv = secrets.token_bytes(32), secrets.token_bytes(12)
+    oaep = padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
+    return {"w": {u: b64(p.encrypt(k, oaep)) for u, p in admins(d).items()}, "c": b64(iv + AESGCM(k).encrypt(iv, json.dumps(info).encode(), None))}
+
+
 def add(name, scope, password=None, person=None):
     sc = scope.strip().lower()
     campuses = "counsellor" if person else sc if sc in ("all", "central") else [SHORT.get(c.strip(), c.strip()) for c in scope.split(",") if c.strip()]
@@ -56,6 +71,7 @@ def add(name, scope, password=None, person=None):
     d[u] = {"campuses": campuses, "iter": 600000, "salt": b64(salt), "key": b64(iv + AESGCM(kek).encrypt(iv, inner, None)),
             "pub": b64(spki), "file": "d-" + u[:16] + ".enc"}
     if person: d[u]["person"] = person_id(person)   # hashed, so the public file doesn't name the counsellor
+    if admins(d): d[u]["meta"] = seal_meta(d, {"name": name.strip(), "pk": b64(pkcs8)})
     save(d)
     sees = "all campuses" if campuses == "all" else "the Central desk tab (whole desk)" if campuses == "central" else f"own Central desk numbers and calls ({person})" if person else ", ".join(campuses)
     print(f"Login: {name.strip()}\nPassword: {password}\nSees: {sees}")
@@ -92,7 +108,15 @@ if __name__ == "__main__":
         if sys.argv[3] == "on": e["business"] = True
         else: e.pop("business", None)
         save(d); print(f"business tab {sys.argv[3]} for {sys.argv[2]}")
+    elif cmd == "admin":
+        # admin rights only take effect for meta records sealed after this; turn it on from an existing admin's Users tab
+        # (Make admin) to re-seal every login's record for the new admin as well
+        d = load(); e = d.get(uid(sys.argv[2]))
+        if not e: sys.exit("no such login")
+        if sys.argv[3] == "on": e["admin"] = True
+        else: e.pop("admin", None)
+        save(d); print(f"admin {sys.argv[3]} for {sys.argv[2]}")
     elif cmd == "remove":
         d = load(); print("removed" if d.pop(uid(sys.argv[2]), None) else "no such login"); save(d)
     else:
-        for u, e in load().items(): print(u, e["campuses"], e.get("person", ""))
+        for u, e in load().items(): print(u, e["campuses"], e.get("person", ""), "admin" if e.get("admin") else "")

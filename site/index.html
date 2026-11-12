@@ -152,6 +152,28 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
 .seats svg { width: 100%; height: auto; display: block; overflow: visible; }
 .seats .ax { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
 .lg i.sq { width: 10px; height: 10px; border-radius: 3px; }
+/* users tab (admin) */
+.ufm { padding: 18px 16px; display: grid; gap: 14px; max-width: 760px; }
+.ufm h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.ufm label.f { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.ufm input[type=text], .ufm input[type=password] { font: inherit; font-size: 15px; color: var(--ink); border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 12px; outline: none; width: 100%; max-width: 420px; }
+.ufm input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--tint); }
+.ufm .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ufm .camps { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 2px 10px; }
+.ufm .camps label, .ufm label.ck { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--ink); cursor: pointer; padding: 4px 0; }
+.ufm input[type=checkbox], .ufm input[type=radio] { width: 16px; height: 16px; accent-color: var(--navy); margin: 0; }
+.ufm .hint { font-size: 12px; color: var(--muted); margin: 0; }
+.ufm ol { margin: 0; padding-left: 20px; font-size: 14px; color: var(--ink-2); display: grid; gap: 4px; }
+.umsg { padding: 12px 16px; border-radius: 12px; background: var(--tint); color: var(--navy); font-size: 14px; }
+.umsg.bad { background: #FCEDEC; color: var(--bad); }
+.umsg code, .ufm code { font: 600 15px ui-monospace, SFMono-Regular, Menlo, monospace; background: #fff; padding: 2px 8px; border-radius: 6px; user-select: all; }
+table.users td, table.users th { text-align: left; white-space: normal; }
+table.users td.acts { text-align: right; white-space: nowrap; }
+table.users td.acts .btn { padding: 4px 12px; font-size: 13px; margin-left: 4px; }
+table.users .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 980px; background: var(--soft); color: var(--ink-2); margin-left: 6px; }
+table.users .tag.adm { background: var(--navy); color: #fff; }
+.btn.warn { color: var(--bad); }
+.btn[disabled] { opacity: .5; cursor: progress; }
 .tip { position: fixed; z-index: 70; pointer-events: none; background: var(--ink); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 8px; white-space: nowrap; }
 </style>
 </head>
@@ -231,11 +253,16 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
     const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.slice(256, 268) }, k, b.slice(268));
     const data = JSON.parse(await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
     data.user = inner.name;
+    ME = { admin: !!entry.admin, pk: inner.pk, name: inner.name };
+    GH = null;
+    if (entry.gh) try { GH = new TextDecoder().decode(await crypto.subtle.decrypt({ name: "RSA-OAEP" }, pk, b64(entry.gh))); DISPATCH = DISPATCH || GH; } catch (e) {}
     if (entry.dispatch) try { DISPATCH = new TextDecoder().decode(await crypto.subtle.decrypt({ name: "RSA-OAEP" }, pk, b64(entry.dispatch))); } catch (e) {}
     return data;
   }
   const showGate = () => { $("#gate").hidden = false; $("#app").hidden = true; $("#user").focus(); };
   let PK = null;         // this login's private key; it also opens the login's call audit keys
+  let ME = null;         // {admin, pk, name}: admins get the Users tab
+  let GH = null;         // admins only: a GitHub token limited to this repo, used by the Users tab to save logins
   let DISPATCH = null;   // corporate only: a GitHub token that can only start the refresh run
   let SESS = null;   // {u, k} kept in memory so the page can pull fresh data every few minutes
 
@@ -392,7 +419,7 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
 
   function tabs() {
     const list = (D.role === "corporate" ? [["central", "Central desk"], ["school", "School teams"]] : D.role === "counsellor" || D.role === "central" ? [["central", "Central desk"]] : [["school", "School teams"]])
-      .concat(D.biz ? [["business", "Business"]] : [], CALLS ? [["calls", "Call audit"]] : []);
+      .concat(D.biz ? [["business", "Business"]] : [], CALLS ? [["calls", "Call audit"]] : [], ME && ME.admin ? [["users", "Users"]] : []);
     for (const id of ["#tabs", "#mtabs"]) {
       $(id).replaceChildren(...list.map(([k, label]) => h("button", { class: "tab", role: "tab", "aria-selected": String(S.tab === k),
         onclick: () => { S.tab = k; S.person = "all"; if (k === "calls") { tabs(); showCalls(); } else render(); } }, label)));
@@ -688,11 +715,300 @@ table.biz th:first-child, table.biz td:first-child { min-width: 0; padding-left:
     );
   }
 
+  // ---------- users tab (admins): add, edit, reset and remove logins, saved to logins.json in the repo ----------
+  // Same format as logins.py: each login has an RSA key pair; its private key is sealed with the password (PBKDF2 600k +
+  // AES-GCM). "meta" holds the login's name and private key sealed to every admin's public key, so admins can list logins
+  // by name and reset a password without changing the key pair. The refresh run publishes users.json from logins.json; for
+  // password changes and removals the page also patches the published users.json at once, then starts a refresh.
+  const CAMPUSES = [["GMS Gurugram", "GEMS Millennium School - Gurugram"], ["GMS Indirapuram", "GEMS Millennium School - Indirapuram"],
+    ["GMS Kochi", "GEMS Millennium School - Kochi"], ["GMS Varanasi", "GEMS Millennium School - Varanasi"], ["GMS Raipur", "GEMS Millennium School - Raipur"],
+    ["GMS Vikhroli", "GEMS Millennium School - Vikhroli"], ["GMS Kalyan", "GEMS Millennium School - Kalyan"], ["GMA Kochi", "GEMS Modern Academy - Kochi"],
+    ["GMA Coimbatore", "GEMS Modern Academy - Coimbatore"], ["GSE Jodhpur", "GEMS School of Excellence - Jodhpur"],
+    ["GSE Lucknow", "GEMS School of Excellence - Lucknow"], ["Little GEMS Kochi", "Little GEMS - Kochi"]];
+  const OAEP = { name: "RSA-OAEP", hash: "SHA-256" };
+  const enc = (s) => new TextEncoder().encode(s), utf8 = (b) => new TextDecoder().decode(b);
+  const rand = (n) => crypto.getRandomValues(new Uint8Array(n));
+  const cat = (a, b) => { const o = new Uint8Array(a.length + b.byteLength); o.set(a); o.set(new Uint8Array(b), a.length); return o; };
+  const U = { logins: null, sha: null, names: {}, keys: {}, view: "list", edit: null, msg: null, bad: false, busy: false, newPass: null };
+
+  function genPassword() {
+    const A = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", r = rand(12);
+    return [0, 4, 8].map((i) => [...r.slice(i, i + 4)].map((x) => A[x % A.length]).join("")).join("-");
+  }
+  async function sealKey(name, pkB64, pass) {
+    const salt = rand(16), iv = rand(12);
+    const base = await crypto.subtle.importKey("raw", enc(pass), "PBKDF2", false, ["deriveBits"]);
+    const raw = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" }, base, 256);
+    const kek = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt"]);
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, kek, enc(JSON.stringify({ name, pk: pkB64 })));
+    return { fields: { iter: 600000, salt: toB64(salt), key: toB64(cat(iv, ct)) }, raw };
+  }
+  async function newKeyPair() {
+    const kp = await crypto.subtle.generateKey({ name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["encrypt", "decrypt"]);
+    return { pk: toB64(await crypto.subtle.exportKey("pkcs8", kp.privateKey)), pub: toB64(await crypto.subtle.exportKey("spki", kp.publicKey)) };
+  }
+  const pubKey = (b) => crypto.subtle.importKey("spki", b64(b), OAEP, false, ["encrypt"]);
+  const wrapFor = async (pub, bytes) => toB64(await crypto.subtle.encrypt({ name: "RSA-OAEP" }, await pubKey(pub), bytes));
+  const adminsOf = (L) => Object.entries(L).filter(([, e]) => e.admin);
+  async function sealMeta(L, info) {
+    const k = rand(32), iv = rand(12), w = {};
+    for (const [u, e] of adminsOf(L)) w[u] = await wrapFor(e.pub, k);
+    const key = await crypto.subtle.importKey("raw", k, "AES-GCM", false, ["encrypt"]);
+    return { w, c: toB64(cat(iv, await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc(JSON.stringify(info))))) };
+  }
+  async function metaKey(meta) {   // the record's AES key, opened with this admin's private key
+    if (!meta || !meta.w || !meta.w[SESS.u]) return null;
+    return new Uint8Array(await crypto.subtle.decrypt({ name: "RSA-OAEP" }, PK, b64(meta.w[SESS.u])));
+  }
+  async function openMeta(meta) {
+    const k = await metaKey(meta); if (!k) return null;
+    const c = b64(meta.c), key = await crypto.subtle.importKey("raw", k, "AES-GCM", false, ["decrypt"]);
+    return JSON.parse(utf8(await crypto.subtle.decrypt({ name: "AES-GCM", iv: c.slice(0, 12) }, key, c.slice(12))));
+  }
+
+  // GitHub contents API, with the admin's token
+  const api = (path, opt = {}) => fetch("https://api.github.com/repos/" + REPO + path, Object.assign({}, opt, {
+    headers: { Authorization: "Bearer " + GH, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" } }));
+  async function ghRead(path, ref) {
+    const r = await api(`/contents/${path}?ref=${ref}&t=${Date.now()}`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`Couldn't read ${path} (GitHub ${r.status})`);
+    const j = await r.json();
+    return { sha: j.sha, json: JSON.parse(utf8(b64(j.content.replace(/\n/g, "")))) };
+  }
+  const sorted = (v) => Array.isArray(v) ? v.map(sorted) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sorted(v[k])])) : v;
+  async function ghWrite(path, ref, obj, sha, message) {
+    const content = toB64(enc(JSON.stringify(sorted(obj), null, 1) + "\n"));
+    const r = await api(`/contents/${path}`, { method: "PUT", body: JSON.stringify({ message, content, sha, branch: ref }) });
+    if (r.status === 409 || r.status === 422) throw Object.assign(new Error("changed"), { conflict: true });
+    if (!r.ok) throw new Error(`Couldn't save ${path} (GitHub ${r.status})`);
+    return (await r.json()).content.sha;
+  }
+  // read logins.json, apply change(L), write it back; on a clash with another save, read again and retry
+  async function saveLogins(change, message) {
+    for (let i = 0; i < 3; i++) {
+      const { sha, json } = await ghRead("logins.json", "main");
+      await change(json);
+      try { U.sha = await ghWrite("logins.json", "main", json, sha, message); U.logins = json; return json; }
+      catch (e) { if (!e.conflict) throw e; }
+    }
+    throw new Error("Someone else is saving logins right now, try again in a minute");
+  }
+  // the published sign-in index, changed at once so a new password or a removal works straight away
+  async function patchPublished(change) {
+    for (let i = 0; i < 3; i++) {
+      try { const { sha, json } = await ghRead("users.json", "gh-pages"); change(json); await ghWrite("users.json", "gh-pages", json, sha, "Users tab: update sign-in"); return true; }
+      catch (e) { if (!e.conflict) return false; }
+    }
+    return false;
+  }
+  const pubFields = (e) => Object.fromEntries(["iter", "salt", "key", "file", "dispatch", "admin", "gh"].filter((k) => k in e).map((k) => [k, e[k]]));
+  async function startRefresh() {
+    try { const r = await api("/actions/workflows/refresh.yml/dispatches", { method: "POST", body: JSON.stringify({ ref: "main" }) }); return r.ok; } catch (e) { return false; }
+  }
+
+  async function loadUsers() {
+    U.logins = GH ? (await ghRead("logins.json", "main")).json : await (await fetch(`https://raw.githubusercontent.com/${REPO}/main/logins.json?t=${Date.now()}`, { cache: "no-store" })).json();
+    U.names = { [SESS.u]: ME.name }; U.keys = {};
+    for (const [u, e] of Object.entries(U.logins)) {
+      try { const m = await openMeta(e.meta); if (m) { U.names[u] = m.name; if (m.pk) U.keys[u] = m.pk; } } catch (err) {}
+    }
+  }
+  const access = (e) => e.campuses === "all" ? "Everything (all tabs, all campuses)" : e.campuses === "central" ? "Central desk tab, whole desk"
+    : e.campuses === "counsellor" ? "One central counsellor's own numbers" : e.campuses.map((c) => short(c)).join(", ") + (e.business ? " · School teams + Business" : " · School teams");
+
+  async function run(label, fn) {
+    if (U.busy) return;
+    U.busy = true; U.msg = label; U.bad = false; renderUsers();
+    try { await fn(); } catch (e) { U.msg = e.message || "Something went wrong, nothing was changed"; U.bad = true; }
+    U.busy = false; renderUsers();
+  }
+
+  function scopeFromForm(f) {
+    const kind = f.querySelector("input[name=kind]:checked").value;
+    if (kind !== "campus") return { campuses: kind, business: false };
+    const picked = [...f.querySelectorAll(".camps input:checked")].map((c) => c.value);
+    if (!picked.length) throw new Error("Pick at least one campus");
+    return { campuses: picked, business: f.querySelector("input[name=biz]").checked };
+  }
+  const liveNote = (ok) => ok ? "It goes live in about two minutes." : "It goes live at the next scheduled refresh.";
+
+  async function addUser(f) {
+    const name = f.querySelector("[name=uname]").value.trim(), pass = f.querySelector("[name=upass]").value;
+    if (!name) throw new Error("Type a username");
+    if (pass.length < 8) throw new Error("Use a password of at least 8 characters");
+    const sc = scopeFromForm(f), u = await uidOf(name);
+    const kp = await newKeyPair(), sealed = await sealKey(name, kp.pk, pass);
+    await saveLogins(async (L) => {
+      if (L[u]) throw new Error(`There is already a login called ${name}`);
+      L[u] = Object.assign({ campuses: sc.campuses, pub: kp.pub, file: "d-" + u.slice(0, 16) + ".enc", meta: await sealMeta(L, { name, pk: kp.pk }) }, sealed.fields, sc.business ? { business: true } : {});
+    }, `Add login (Users tab)`);
+    U.names[u] = name; U.keys[u] = kp.pk;
+    const ok = await startRefresh();
+    U.view = "list"; U.newPass = { name, pass };
+    U.msg = `Added ${name}. ${liveNote(ok)} Share the password below with them; it isn't shown again.`;
+  }
+
+  async function editUser(u, f) {
+    const sc = scopeFromForm(f);
+    await saveLogins(async (L) => {
+      const e = L[u]; if (!e) throw new Error("That login was removed");
+      e.campuses = sc.campuses; if (sc.business) e.business = true; else delete e.business;
+    }, `Change a login's access (Users tab)`);
+    const ok = await startRefresh();
+    U.view = "list"; U.msg = `Saved ${U.names[u] || "the login"}'s access. ${liveNote(ok)}`;
+  }
+
+  async function resetPassword(u, pass) {
+    if (pass.length < 8) throw new Error("Use a password of at least 8 characters");
+    const self = u === SESS.u, name = self ? ME.name : U.names[u];
+    if (!name) throw new Error("This login's name isn't recorded, so its password can't be reset here. Remove it and add it again.");
+    let pk = self ? ME.pk : U.keys[u], fresh = null;
+    if (!pk) {
+      if (U.logins[u].admin) throw new Error(`${name} is an admin without a recovery record, so only they can change their password (Users tab, on their own row)`);
+      fresh = await newKeyPair(); pk = fresh.pk;   // an older login made before the Users tab: new key pair, live after the refresh
+    }
+    const sealed = await sealKey(name, pk, pass);
+    await saveLogins(async (L) => {
+      const e = L[u]; if (!e) throw new Error("That login was removed");
+      Object.assign(e, sealed.fields);
+      if (fresh) { e.pub = fresh.pub; e.meta = await sealMeta(L, { name, pk }); }
+    }, `Reset a password (Users tab)`);
+    U.keys[u] = pk;
+    const live = await patchPublished((idx) => { if (fresh) delete idx[u]; else if (idx[u]) Object.assign(idx[u], sealed.fields); });
+    const ok = await startRefresh();
+    if (self) { SESS.k = toB64(sealed.raw); if (store.get()) store.set(SESS); }
+    U.view = "list"; U.newPass = self ? null : { name, pass };
+    U.msg = fresh ? `New password set for ${name}. Their old password stopped working; the new one works ${ok ? "in about two minutes" : "after the next scheduled refresh"}.`
+      : `${self ? "Your" : name + "'s"} password is changed${live ? " and works now" : "; it works after the next refresh"}.${self ? "" : " Share it with them; it isn't shown again."}`;
+  }
+
+  async function removeUser(u) {
+    const name = U.names[u] || "this login";
+    if (!confirm(`Remove ${name}? They won't be able to sign in any more.`)) return;
+    await run("Removing…", async () => {
+      await saveLogins(async (L) => { delete L[u]; }, `Remove a login (Users tab)`);
+      await patchPublished((idx) => { delete idx[u]; });
+      await startRefresh();
+      U.msg = `Removed ${name}. They can't sign in any more.`;
+    });
+  }
+
+  async function setAdmin(u, on) {
+    const name = U.names[u] || "this login";
+    if (on && !confirm(`Make ${name} an admin? They will be able to add, change and remove every login, including yours.`)) return;
+    await run("Saving…", async () => {
+      await saveLogins(async (L) => {
+        const e = L[u]; if (!e) throw new Error("That login was removed");
+        if (on) {
+          // seal every login's record and the GitHub token to the new admin too
+          for (const x of Object.values(L)) { const k = await metaKey(x.meta); if (k) x.meta.w[u] = await wrapFor(e.pub, k); }
+          e.admin = true; if (GH) e.gh = await wrapFor(e.pub, enc(GH));
+        } else {
+          delete e.admin; delete e.gh;
+          for (const x of Object.values(L)) if (x.meta && x.meta.w) delete x.meta.w[u];
+        }
+      }, on ? "Make a login an admin (Users tab)" : "Remove admin rights (Users tab)");
+      if (!on) await patchPublished((idx) => { if (idx[u]) { delete idx[u].admin; delete idx[u].gh; } });
+      const ok = await startRefresh();
+      U.msg = on ? `${name} is now an admin. ${liveNote(ok)}` : `${name} is no longer an admin.`;
+    });
+  }
+
+  async function saveToken(tok) {
+    tok = tok.trim(); if (!tok) throw new Error("Paste the token first");
+    const prev = GH; GH = tok;
+    try {
+      const r = await api("", {});
+      if (!r.ok) throw new Error(`GitHub didn't accept that token (${r.status}). Check it is for ${REPO}.`);
+      await saveLogins(async (L) => { for (const [, e] of adminsOf(L)) e.gh = await wrapFor(e.pub, enc(tok)); }, "Users tab: save the admin GitHub token");
+      await patchPublished((idx) => { for (const [u, e] of adminsOf(U.logins)) if (idx[u]) { idx[u].admin = true; idx[u].gh = e.gh; } });
+    } catch (e) { GH = prev; throw e; }
+    DISPATCH = DISPATCH || GH;
+    await loadUsers();
+    U.msg = "Token saved. You can manage logins now."; U.view = "list";
+  }
+
+  // ---------- users tab: views ----------
+  function scopeFields(e) {
+    const kind = !e ? "campus" : Array.isArray(e.campuses) ? "campus" : e.campuses;
+    const picked = new Set(e && Array.isArray(e.campuses) ? e.campuses : []);
+    const camps = h("div", { class: "camps" }, CAMPUSES.map(([s, full]) => { const cb = h("input", { type: "checkbox", value: full }); cb.checked = picked.has(full); return h("label", null, cb, s); }));
+    const biz = h("input", { type: "checkbox", name: "biz" }); biz.checked = e ? !!e.business : true;
+    const campBox = h("div", { style: "display:grid;gap:10px;padding-left:24px" }, camps, h("label", { class: "ck" }, biz, "Also show the Business tab for these campuses"));
+    const radio = (v, label) => { const r = h("input", { type: "radio", name: "kind", value: v }); r.checked = kind === v; r.onchange = () => { campBox.hidden = v !== "campus"; }; return h("label", { class: "ck" }, r, label); };
+    campBox.hidden = kind !== "campus";
+    const opts = [radio("campus", "Chosen campuses (School teams tab)"), campBox, radio("central", "Central desk tab, whole desk"), radio("all", "Everything (Corporate view: all tabs, all campuses)")];
+    if (kind === "counsellor") opts.unshift(radio("counsellor", "One central counsellor's own numbers (keep as is)"));
+    return h("div", { class: "f", style: "display:grid;gap:6px" }, h("span", { style: "font-size:13px;color:var(--muted)" }, "What they can see"), ...opts);
+  }
+  const passField = (val) => {
+    const inp = h("input", { type: "text", name: "upass", value: val, autocomplete: "new-password", spellcheck: "false" });
+    return h("label", { class: "f" }, "Password", h("div", { class: "row" }, inp, h("button", { type: "button", class: "btn", onclick: () => { inp.value = genPassword(); } }, "New suggestion")));
+  };
+  function form(title, fields, submit, label) {
+    const f = h("form", { class: "ufm" }, h("h3", null, title), ...fields,
+      h("div", { class: "row" }, h("button", { class: "btn dark", type: "submit", disabled: U.busy }, label), h("button", { class: "btn", type: "button", onclick: () => { U.view = "list"; U.msg = null; renderUsers(); } }, "Cancel")));
+    f.onsubmit = (ev) => { ev.preventDefault(); run("Saving…", () => submit(f)); };
+    return h("div", { class: "panel" }, f);
+  }
+
+  function tokenSetup() {
+    const inp = h("input", { type: "password", name: "tok", placeholder: "github_pat_…", autocomplete: "off", spellcheck: "false" });
+    const f = h("form", { class: "ufm" }, h("h3", null, "One-time setup: connect the dashboard to GitHub"),
+      h("p", { class: "hint", style: "font-size:14px;color:var(--ink-2)" }, "Logins are stored in the dashboard's GitHub repository, so saving them needs a GitHub token. You paste it once; it is stored encrypted so only an admin password can open it."),
+      h("ol", null,
+        h("li", null, "Sign in to GitHub as gemseducationindia and open ", h("a", { href: "https://github.com/settings/personal-access-tokens/new", target: "_blank", rel: "noopener" }, "New fine-grained token"), "."),
+        h("li", null, "Name it “Dashboard users”, pick an expiry (up to a year), Repository access: Only select repositories → gems-team-productivity."),
+        h("li", null, "Permissions → Repository: Contents “Read and write” and Actions “Read and write”. Generate, copy, and paste it here.")),
+      h("label", { class: "f" }, "GitHub token", inp),
+      h("div", { class: "row" }, h("button", { class: "btn dark", type: "submit", disabled: U.busy }, "Save token")));
+    f.onsubmit = (ev) => { ev.preventDefault(); run("Checking the token…", () => saveToken(inp.value)); };
+    return h("div", { class: "panel" }, f);
+  }
+
+  function renderUsers() {
+    if (S.tab !== "users") return;
+    const top = h("h2", null, "Users", h("span", null, U.logins ? Object.keys(U.logins).length + " logins" : "Loading…"));
+    const parts = [top];
+    if (U.msg) parts.push(h("div", { class: "umsg" + (U.bad ? " bad" : "") }, U.msg));
+    if (U.newPass) parts.push(h("div", { class: "umsg" }, "Username ", h("code", null, U.newPass.name), "  Password ", h("code", null, U.newPass.pass)));
+    if (!U.logins) {
+      $("#page").replaceChildren(h("section", null, ...parts));
+      loadUsers().then(renderUsers, (e) => { U.msg = "Couldn't load the logins: " + e.message; U.bad = true; U.logins = {}; renderUsers(); });
+      return;
+    }
+    if (!GH) parts.push(tokenSetup());
+    else if (U.view === "add") parts.push(form("Add a user", [h("label", { class: "f" }, "Username", h("input", { type: "text", name: "uname", autocomplete: "off", autocapitalize: "none", spellcheck: "false", placeholder: "e.g. name@gemsedu.in or Vikhroli" })), passField(genPassword()), scopeFields(null)], addUser, "Add user"));
+    else if (U.view === "edit") parts.push(form("Change what " + (U.names[U.edit] || "this login") + " can see", [scopeFields(U.logins[U.edit])], (f) => editUser(U.edit, f), "Save"));
+    else if (U.view === "pass") parts.push(form((U.edit === SESS.u ? "Change your password" : "Set a new password for " + (U.names[U.edit] || "this login")),
+      [passField(U.edit === SESS.u ? "" : genPassword()), h("p", { class: "hint" }, U.edit === SESS.u ? "Type your new password (8 characters or more)." : "Their old password stops working as soon as you save.")],
+      (f) => resetPassword(U.edit, f.querySelector("[name=upass]").value), "Save password"));
+    else parts.push(h("div", { class: "row", style: "display:flex;gap:8px" }, h("button", { class: "btn dark", disabled: U.busy, onclick: () => { U.view = "add"; U.msg = null; U.newPass = null; renderUsers(); } }, "Add user")));
+
+    const rows = Object.entries(U.logins).map(([u, e]) => [u, e, U.names[u] || "(name not recorded)"]).sort((a, b) => (b[1].admin ? 1 : 0) - (a[1].admin ? 1 : 0) || a[2].localeCompare(b[2]));
+    const act = (label, fn, cls) => h("button", { class: "btn" + (cls ? " " + cls : ""), disabled: U.busy || !GH, onclick: fn }, label);
+    const go = (view, u) => () => { U.view = view; U.edit = u; U.msg = null; U.newPass = null; renderUsers(); };
+    const trs = rows.map(([u, e, name]) => {
+      const acts = u === SESS.u ? [act("Change my password", go("pass", u))] : [
+        act("Access", go("edit", u)), act("Password", go("pass", u)),
+        e.campuses === "all" ? act(e.admin ? "Remove admin" : "Make admin", () => setAdmin(u, !e.admin)) : null,
+        act("Remove", () => removeUser(u), "warn")];
+      return h("tr", null,
+        h("td", null, name, e.admin ? h("span", { class: "tag adm" }, "Admin") : null, u === SESS.u ? h("span", { class: "tag" }, "You") : null),
+        h("td", null, access(e)), h("td", { class: "acts" }, acts));
+    });
+    const table = h("table", { class: "users" }, h("thead", null, h("tr", null, h("th", null, "Username"), h("th", null, "Can see"), h("th", null, ""))), h("tbody", null, trs));
+    parts.push(h("div", { class: "panel" }, h("div", { class: "scroll" }, table),
+      h("p", { class: "note" }, "Usernames are not case sensitive. Changes are saved to the dashboard's GitHub repository; new users and access changes go live after a refresh (about two minutes), password changes and removals straight away. Only Corporate-view logins can be made admins.")));
+    $("#page").replaceChildren(h("section", null, ...parts));
+  }
+
   function render() {
     if (S.tab === "calls") { tabs(); return; }
     $("#page").hidden = false; $("#bar").hidden = false; if (!$("#calls").classList.contains("pre")) $("#calls").hidden = true;
     tabs(); bar();
     if (S.tab === "business") return renderBiz();
+    if (S.tab === "users") { $("#bar").hidden = true; return renderUsers(); }
     const [a, b] = range();
     const gs = groups();
     const everyone = new Set(gs.flatMap(([, ps]) => ps.map(([, i]) => i)));
