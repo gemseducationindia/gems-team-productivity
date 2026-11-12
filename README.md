@@ -37,7 +37,7 @@ and `python logins.py add` again with the same name to reset a password.
 
 ## Users tab (admins)
 
-Admin logins (Corporate, `python logins.py admin NAME on`) get a **Users** tab to add users, change what they can see, set
+Admin logins (the "Admin" login; `python logins.py admin NAME on`) get a **Users** tab to add users, change what they can see, set
 passwords and remove them, right in the dashboard. It saves `logins.json` to `main` through the GitHub API with a fine-grained
 token (this repo only; Contents and Actions read and write) that an admin pastes once; the token is stored encrypted to each
 admin's key, like the dispatch token. Each login's `meta` holds its name and private key sealed to the admins' keys, so admins
