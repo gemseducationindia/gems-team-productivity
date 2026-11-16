@@ -146,6 +146,10 @@ table.biz { font-size: 12.5px; }
 table.biz.even th:nth-child(7), table.biz.even td:nth-child(7), table.biz.even th:nth-child(10), table.biz.even td:nth-child(10) { border-left: 1px solid var(--line); }
 table.biz th, table.biz td { padding: 8px 5px; }
 table.biz thead th { min-width: 0; font-size: 11.5px; }
+/* grouped header (Pipeline: Hot / Warm) and the divider either side of the group */
+table.biz thead th.grp { text-align: center; padding-bottom: 6px; vertical-align: bottom; }
+table.biz thead tr + tr th { padding-top: 6px; }
+table.biz th.gl, table.biz td.gl { border-left: 1px solid var(--line); }
 table.split th, table.split td { padding: 8px 5px; }
 table.split td { font-size: 12.5px; }
 table.split thead th { min-width: 0; }
@@ -636,13 +640,16 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
   }
   const GLABEL = { "Pre-Kindergarten": "EY1 Pre-KG", "Nursery": "EY2 Nursery", "Junior KG": "EY3 Junior KG", "Senior KG": "EY4 Senior KG" };
   const glabel = (g) => GLABEL[g] || (/^Grade \d+$/.test(g) ? "Grade " + g.slice(6).padStart(2, "0") : g);
-  const BLANK = () => ({ leads: 0, vs: 0, vd: 0, normal: 0, rte: 0, adm: 0, all: 0, gross: 0, disc: 0, existing: 0, capacity: 0, est: 0 });
+  const BLANK = () => ({ leads: 0, vs: 0, vd: 0, hot: 0, warm: 0, wait: 0, normal: 0, rte: 0, adm: 0, all: 0, gross: 0, disc: 0, existing: 0, capacity: 0, est: 0 });
   // one cell per campus x grade for the period; money in paise so every sum is exact
   function bizCells() {
     const B = D.biz, [a, b] = brange(), cells = new Map(), inP = (d) => d != null && d >= a && d <= b;
     const at = (c, g) => { const k = c * 1000 + g; if (!cells.has(k)) cells.set(k, Object.assign(BLANK(), { c, g })); return cells.get(k); };
     for (const [c, g, cap, ex] of B.cap) { const x = at(c, g); x.capacity += cap; x.existing += ex; }
-    for (const [c, g, ld, sd, dd] of B.leads) { const x = at(c, g); if (inP(ld)) x.leads++; if (inP(sd)) x.vs++; if (inP(dd)) x.vd++; }
+    for (const [c, g, ld, sd, dd, p] of B.leads) {
+      const x = at(c, g); if (inP(ld)) { x.leads++; if (p === "H") x.hot++; if (p === "W") x.warm++; } if (inP(sd)) x.vs++; if (inP(dd)) x.vd++;
+    }
+    for (const [c, g, d] of B.wait || []) if (inP(d)) at(c, g).wait++;
     for (const [c, g, type, d, fees, est] of B.deals) {
       const x = at(c, g); x.all++;
       if (!inP(d)) continue;
@@ -654,7 +661,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
   const sumCells = (cs) => cs.reduce((t, x) => { for (const k in t) t[k] += x[k]; return t; }, BLANK());
   // rows for the view: campuses (+ all-campus total) or the grades of one campus / all campuses (+ total)
   function bizRows() {
-    const cs = bizCells(), keep = (r) => r.leads + r.all + r.capacity + r.existing > 0, rows = [];
+    const cs = bizCells(), keep = (r) => r.leads + r.all + r.wait + r.capacity + r.existing > 0, rows = [];
     if (S.bview === "all") {
       const order = D.biz.campuses.map((_, i) => i).sort((x, y) => short(D.biz.campuses[x]).localeCompare(short(D.biz.campuses[y])));
       for (const c of order) rows.push(Object.assign(sumCells(cs.filter((x) => x.c === c)), { label: short(D.biz.campuses[c]) }));
@@ -708,10 +715,22 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
       h("button", { class: "ctl" + (REFRESH.busy ? " spin" : ""), disabled: REFRESH.busy, title: "Pull the latest numbers from the CRM", onclick: refreshNow }, svgIcon(ICON.refresh), REFRESH.busy ? "Refreshing…" : "Refresh"));
   }
 
+  // a column is a header string, or { group, cols } for a header spanning sub-columns (set off by a divider either side)
   function bizTable(first, cols, rows, row, cls) {
+    const grouped = cols.some((c) => typeof c === "object"), edge = [];   // edge[i]: column i starts a divider
+    cols.forEach((c, i) => { if (typeof c === "object") { edge.push(true); c.cols.slice(1).forEach(() => edge.push(false)); } else edge.push(i > 0 && typeof cols[i - 1] === "object"); });
+    const gl = (i) => (edge[i] ? "gl" : null);
+    let k = 0;
+    const head = grouped
+      ? [h("tr", null, h("th", { rowspan: 2 }, first), cols.map((c) => {
+          if (typeof c === "object") { const th = h("th", { colspan: c.cols.length, class: "grp gl" }, c.group); k += c.cols.length; return th; }
+          return h("th", { rowspan: 2, class: gl(k++) }, c);
+        })),
+        h("tr", null, (k = 0, cols.flatMap((c) => (typeof c === "object" ? c.cols.map((s) => h("th", { class: gl(k++) }, s)) : (k++, [])))))]
+      : [h("tr", null, h("th", null, first), cols.map((c) => h("th", null, c)))];
     return h("div", { class: "scroll" }, h("table", { class: "biz" + (cls ? " " + cls : "") },
-      h("thead", null, h("tr", null, h("th", null, first), cols.map((c) => h("th", null, c)))),
-      h("tbody", null, rows.map((r) => h("tr", { class: r.total ? "total" : null }, h("td", null, r.label), row(r).map((v) => h("td", null, v)))))));
+      h("thead", null, head),
+      h("tbody", null, rows.map((r) => h("tr", { class: r.total ? "total" : null }, h("td", null, r.label), row(r).map((v, i) => h("td", { class: gl(i) }, v)))))));
   }
 
   function seats(rows) {
@@ -772,9 +791,9 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
           tot.est ? h("p", { class: "note" }, "* Includes estimated fees for " + bint(tot.est) + " admission" + (tot.est > 1 ? "s" : "") + " whose grade has no fee grid in the CRM yet (GMS Kochi Grades 6 and 7). Tuition is taken at the Grade 5 rate of ₹1,75,450 until the grid is added.") : null)),
       h("section", null,
         h("h2", null, "Sales funnel by " + first.toLowerCase()),
-        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Visits Booked", "Walk-Ins", "Total New Admissions", "Lead to Visit Booked %",
-          "Visit Booked to Visit Done %", "Visit Done to Admission %", "Lead to Admission %"],
-          rows, (r) => [bint(r.leads), bint(r.vs), bint(r.vd), bint(r.adm), bpct(r.vs, r.leads), bpct(r.vd, r.vs), bpct(r.adm, r.vd), bpct(r.adm, r.leads)]))),
+        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Visits Booked", "Walk-Ins", { group: "Pipeline", cols: ["Hot Leads", "Warm Leads"] }, "In Waitlists",
+          "Total New Admissions", "Lead to Visit Booked %", "Visit Booked to Visit Done %", "Visit Done to Admission %", "Lead to Admission %"],
+          rows, (r) => [bint(r.leads), bint(r.vs), bint(r.vd), bint(r.hot), bint(r.warm), bint(r.wait), bint(r.adm), bpct(r.vs, r.leads), bpct(r.vd, r.vs), bpct(r.adm, r.vd), bpct(r.adm, r.leads)]))),
       h("section", null, seats(rows)),
       h("details", { class: "defs" },
         h("summary", null, "How these numbers are counted"),
@@ -783,6 +802,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
         h("p", null, h("b", null, "Targets 2027-28"), " come from the season targets, phased Nov 15%, Dec 20%, Jan 25%, Feb 20%, Mar 10%, Apr 10%. They always use all new admissions so far (every admission before November counts), whatever the period. ", h("b", null, "% Ach"), " = new admissions ÷ annual target. ", h("b", null, "Target to Date"), " = targets of finished months plus today's share of this month. Grade rows show – because targets are set per campus."),
         h("p", null, h("b", null, "Gross Billing"), " = published application, blocking, tuition and annual fees on every application, plus prospectus where ticked; ", h("b", null, "Discount Given"), " = discounts on those fees; ", h("b", null, "Net Billing"), " = net payable after discount (published − discount), not collections."),
         h("p", null, h("b", null, "Funnel"), ": Lead to Visit Booked % = visits booked ÷ leads, Visit Booked to Visit Done % = visits done ÷ visits booked, Visit Done to Admission % = new admissions ÷ visits done, Lead to Admission % = new admissions ÷ leads."),
+        h("p", null, h("b", null, "Pipeline"), ": Hot Leads / Warm Leads = leads whose intent is Hot / Warm now (the application's intent once converted), not Junk or Lost, and not yet at Application Fee Paid, a new admission or withdrawn; dated by enquiry date like Total Leads. ", h("b", null, "In Waitlists"), " = applications now at Application Submitted, Application Fee Paid or Waitlisted, dated by application date. Bulk imports are left out of lead counts."),
         h("p", null, "Capacity and carry forward come from the operations capacity file. The data refreshes every hour; Refresh pulls it again now."))
     );
   }
