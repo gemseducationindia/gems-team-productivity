@@ -264,6 +264,7 @@ svg.ui { width: 15px; height: 15px; flex: none; }
 .chipck.gma input:checked + span { background: #a07c2c; border-color: #a07c2c; color: #fff; }
 label.ck { display: flex; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; }
 label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0; }
+label.ck.gby { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
 .steps { margin: 0; padding-left: 20px; font-size: 14px; color: var(--ink-2); display: grid; gap: 4px; }
 .setup { max-width: 640px; }
 .tip { position: fixed; z-index: 70; pointer-events: none; background: var(--ink); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 8px; white-space: nowrap; }
@@ -460,7 +461,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
 
   // ---------- state ----------
   let D = null;
-  const S = { tab: "central", period: "month", campuses: new Set(), person: "all", bper: "all", bview: "all", badm: false };   // campuses: empty = all
+  const S = { tab: "central", period: "month", campuses: new Set(), person: "all", bper: "all", bview: "all", badm: false, bgrade: false };   // campuses: empty = all
   const inCampus = (c) => !S.campuses.size || S.campuses.has(c);
   const PERIODS = [["today", "Today"], ["yesterday", "Yesterday"], ["7", "Last 7 days"], ["month", "This month"], ["lastmonth", "Last month"], ["all", "All time"]];
   function range() {
@@ -676,6 +677,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
   }
   const sumCells = (cs) => cs.reduce((t, x) => { for (const k in t) t[k] += x[k]; return t; }, BLANK());
   // rows for the view: campuses (+ all-campus total) or the grades of one campus / all campuses (+ total)
+  const oneCampus = () => S.bview !== "all" && S.bview !== "total";
   function bizRows() {
     const cs = bizCells(), keep = (r) => r.leads + r.all + r.wait + r.capacity + r.existing > 0, rows = [];
     if (S.bview === "all") {
@@ -683,6 +685,10 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
       for (const c of order) rows.push(Object.assign(sumCells(cs.filter((x) => x.c === c)), { label: short(D.biz.campuses[c]) }));
       rows.push(Object.assign(sumCells(cs), { label: D.role === "corporate" ? "Total (all campuses)" : "Total", total: true }));
       rows.forEach((r, n) => { r.tgt = r.total ? tgtOf(D.biz.campuses.map((_, i) => i)) : tgtOf([order[n]]); });
+    } else if (oneCampus() && !S.bgrade) {
+      // one campus: just its totals; the grade rows come only with "Show by grade" ticked (Jay, 16 Nov 2026)
+      rows.push(Object.assign(sumCells(cs.filter((x) => x.c === +S.bview)), { label: short(D.biz.campuses[+S.bview]), total: true, tgt: tgtOf([+S.bview]) }));
+      return rows;
     } else {
       const mine = S.bview === "total" ? cs : cs.filter((x) => x.c === +S.bview);
       D.biz.grades.forEach((g, gi) => rows.push(Object.assign(sumCells(mine.filter((x) => x.g === gi)), { label: glabel(g) })));
@@ -728,6 +734,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
       h("span", { class: "sep" }),
       h("select", { class: "sel", "aria-label": "Campus", onchange: (e) => { S.bview = e.target.value; render(); } },
         views.map(([v, label]) => h("option", { value: v, selected: S.bview === v }, label))),
+      oneCampus() ? h("label", { class: "ck gby" }, h("input", { type: "checkbox", checked: S.bgrade, onchange: (e) => { S.bgrade = e.target.checked; render(); } }), "Show by grade") : null,
       h("span", { class: "fresh", id: "fresh" }, REFRESH.note || "Updated " + (g.slice(0, 10) === D.biz.today ? "" : fmt(g.slice(0, 10)) + ", ") + g.slice(11, 16)),
       h("button", { class: "ctl" + (REFRESH.busy ? " spin" : ""), disabled: REFRESH.busy, title: "Pull the latest numbers from the CRM", onclick: refreshNow }, svgIcon(ICON.refresh), REFRESH.busy ? "Refreshing…" : "Refresh"));
   }
@@ -763,7 +770,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
     const [a, b] = brange(), byCampus = S.bview === "all";
     const when = S.bper === "all" ? "All time" : a === b ? fmt(a, { year: "numeric" }) : fmt(a) + " – " + fmt(b, { year: "numeric" });
     const where = byCampus ? allc() : S.bview === "total" ? allc() + " by grade" : short(D.biz.campuses[+S.bview]);
-    const first = byCampus ? "Campus" : "Grade";
+    const first = byCampus || (oneCampus() && !S.bgrade) ? "Campus" : "Grade";
     $("#page").replaceChildren(
       h("section", null,
         h("h2", null, "Business dashboard", h("span", null, where + " · " + when)),
@@ -783,7 +790,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
           tot.est ? h("p", { class: "note" }, "* Includes estimated fees for " + bint(tot.est) + " admission" + (tot.est > 1 ? "s" : "") + " whose grade has no fee grid in the CRM yet (GMS Kochi Grades 6 and 7). Tuition is taken at the Grade 5 rate of ₹1,75,450 until the grid is added.") : null)),
       h("section", null,
         h("h2", null, "Sales funnel by " + first.toLowerCase()),
-        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Visits Booked", "Walk-Ins", { group: "Pipeline", cols: ["Warm", "Hot", "Application Fee Paid", "Enrolled"] },
+        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Visits Booked", "Walk-Ins", { group: "Pipeline", cols: ["Warm", "Hot", "Applications", "Enrolled"] },
           { group: "Conversion %", cols: ["Lead to Visit Booked", "Visit Booked to Visit Done", "Visit Done to Admission", "Lead to Admission"], cls: "cv" }],
           rows, (r) => [bint(r.leads), bint(r.vs), bint(r.vd), bint(r.warm), bint(r.hot), bint(r.wait), bint(r.adm), bpct(r.vs, r.leads), bpct(r.vd, r.vs), bpct(r.adm, r.vd), bpct(r.adm, r.leads)], "funnel",
           ["160px", null, null, null, null, null, null, null, "84px", "84px", "84px", "84px"]))),
@@ -794,7 +801,7 @@ label.ck input { width: 16px; height: 16px; accent-color: var(--navy); margin: 0
         h("p", null, h("b", null, "Targets 2027-28"), " come from the season targets, phased Nov 15%, Dec 20%, Jan 25%, Feb 20%, Mar 10%, Apr 10%. They always use all new admissions so far (every admission before November counts), whatever the period. ", h("b", null, "% Ach"), " = new admissions ÷ annual target. ", h("b", null, "Target to Date"), " = targets of finished months plus today's share of this month. Grade rows show – because targets are set per campus."),
         h("p", null, h("b", null, "Gross Billing"), " = published application, blocking, tuition and annual fees on every application, plus prospectus where ticked; ", h("b", null, "Discount Given"), " = discounts on those fees; ", h("b", null, "Net Billing"), " = net payable after discount (published − discount), not collections."),
         h("p", null, h("b", null, "Funnel"), ": Lead to Visit Booked % = visits booked ÷ leads, Visit Booked to Visit Done % = visits done ÷ visits booked, Visit Done to Admission % = new admissions ÷ visits done, Lead to Admission % = new admissions ÷ leads."),
-        h("p", null, h("b", null, "Pipeline"), ": Warm / Hot = leads whose intent is Warm / Hot now (the application's intent once converted), not Junk or Lost, and not yet at Application Fee Paid; dated by enquiry date like Total Leads. ", h("b", null, "Application Fee Paid"), " = applications that have paid the application fee but are not yet a new admission, withdrawn or rejected; dated by fee paid date. ", h("b", null, "Enrolled"), " = Total New Admissions. A lead sits in only one of the four. Bulk imports are left out of lead counts."),
+        h("p", null, h("b", null, "Pipeline"), ": Warm / Hot = leads whose intent is Warm / Hot now (the application's intent once converted), not Junk or Lost, and with no application submitted yet; dated by enquiry date like Total Leads. ", h("b", null, "Applications"), " = applications submitted, fee paid, documents submitted, offer letter released or waitlisted, and not yet a new admission, withdrawn or rejected; dated by application date. ", h("b", null, "Enrolled"), " = Total New Admissions. A lead sits in only one of the four. Bulk imports are left out of lead counts."),
         h("p", null, "The data refreshes every hour; Refresh pulls it again now."))
     );
   }
