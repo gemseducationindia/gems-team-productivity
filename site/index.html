@@ -156,7 +156,10 @@ button.xp .ar { font-size: 15px; line-height: 1; color: var(--muted); opacity: .
 button.xp:hover .ar { opacity: 1; color: var(--navy); }
 /* business cards: all seven on one row from 900px (Jay's laptop is ~1000px) */
 @media (min-width: 900px) { .kpis.k7 { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
-@media (min-width: 900px) and (max-width: 1299px) { .kpis.k7 .kpi { padding-inline: 10px; } .kpis.k7 .kpi:first-child { padding-left: 0; } .kpis.k7 .v { font-size: 22px; } .kpis.k7 .k { font-size: 12px; } }
+/* the bracket line under a card value: (x% achieved), (x% discount) */
+.kpis.k7 .s { font-size: 14px; color: var(--ink-2); }
+table.biz.even thead th:nth-last-child(-n+4) { white-space: nowrap; }
+@media (min-width: 900px) and (max-width: 1299px) { .kpis.k7 .kpi { padding-inline: 10px; } .kpis.k7 .kpi:first-child { padding-left: 0; } .kpis.k7 .v { font-size: 22px; } .kpis.k7 .k { font-size: 12px; } .kpis.k7 .s { font-size: 13px; } }
 /* sales funnel: counts get the room, conversion % columns kept narrow */
 table.biz.funnel td { font-size: 13.5px; }
 table.biz.funnel td:nth-child(n+9) { font-size: 12px; color: var(--ink-2); }
@@ -291,7 +294,7 @@ label.ck.gby { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
   .kpis.k7 .kpi:first-child { padding-left: 0 !important; border-left: 0 !important; }
   .kpis.k7 .k { font-size: 8.5pt; }
   .kpis.k7 .v { font-size: 16pt !important; }
-  .kpis.k7 .s { font-size: 8pt; }
+  .kpis.k7 .s { font-size: 9.5pt; }
   .panel { border-radius: 6px; break-inside: auto; }
   .scroll { overflow: visible !important; }
   table.biz { table-layout: auto !important; width: 100% !important; font-size: 8.5pt; }
@@ -829,7 +832,9 @@ label.ck.gby { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
           .concat(["Gross Billing (₹ L)", "Discount Given (₹ L)", "Discount %", "Net Billing (₹ L)"]),
           rows, (r) => [bint(r.leads), bint(r.vd), bint(r.adm)].concat(S.badm ? [bint(r.normal), bint(r.rte)] : [], tgtCells(r))
             .concat(SHOW_CAPACITY ? [bint(r.existing), bint(occ(r)), bint(r.capacity), bpct(occ(r), r.capacity)] : [])
-            .concat([lakh(r.gross) + star(r), lakh(r.disc) + star(r), discPct(r), lakh(r.gross - r.disc) + star(r)]), "even" + (S.badm ? " open" : "")),
+            .concat([lakh(r.gross) + star(r), lakh(r.disc) + star(r), discPct(r), lakh(r.gross - r.disc) + star(r)]), "even" + (S.badm ? " open" : ""),
+          // billing columns sized so their headers sit on one line (Jay, 16 Nov 2026)
+          ["160px"].concat(Array(S.badm ? 8 : 6).fill(null), ["132px", "148px", "96px", "124px"])),
           tot.est ? h("p", { class: "note" }, "* Includes estimated fees for " + bint(tot.est) + " admission" + (tot.est > 1 ? "s" : "") + " whose grade has no fee grid in the CRM yet (GMS Kochi Grades 6 and 7). Tuition is taken at the Grade 5 rate of ₹1,75,450 until the grid is added.") : null)),
       h("section", { class: "bsec funnel-sec" },
         h("h2", null, "Sales funnel by " + first.toLowerCase(), h("span", { class: "ponly" }, where + " · " + when)),
