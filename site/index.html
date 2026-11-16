@@ -734,7 +734,7 @@ label.ck.gby { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
       h("span", { class: "sep" }),
       h("select", { class: "sel", "aria-label": "Campus", onchange: (e) => { S.bview = e.target.value; render(); } },
         views.map(([v, label]) => h("option", { value: v, selected: S.bview === v }, label))),
-      oneCampus() ? h("label", { class: "ck gby" }, h("input", { type: "checkbox", checked: S.bgrade, onchange: (e) => { S.bgrade = e.target.checked; render(); } }), "Show by grade") : null,
+      oneCampus() ? h("label", { class: "ck gby" }, h("input", { type: "checkbox", checked: S.bgrade, onchange: (e) => { S.bgrade = e.target.checked; render(); } }), "Show by grade") : "",   // replaceChildren would print null as text
       h("span", { class: "fresh", id: "fresh" }, REFRESH.note || "Updated " + (g.slice(0, 10) === D.biz.today ? "" : fmt(g.slice(0, 10)) + ", ") + g.slice(11, 16)),
       h("button", { class: "ctl" + (REFRESH.busy ? " spin" : ""), disabled: REFRESH.busy, title: "Pull the latest numbers from the CRM", onclick: refreshNow }, svgIcon(ICON.refresh), REFRESH.busy ? "Refreshing…" : "Refresh"));
   }
