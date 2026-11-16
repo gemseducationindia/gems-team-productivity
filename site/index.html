@@ -149,7 +149,11 @@ table.biz.even.open th:nth-child(7), table.biz.even.open td:nth-child(7), table.
 /* Normal / RTE split, opened from the arrow on Total New Admissions */
 table.biz.even.open th:nth-child(5), table.biz.even.open th:nth-child(6) { background: var(--tint); }
 table.biz.even.open td:nth-child(5), table.biz.even.open td:nth-child(6) { background: #F7F9FC; color: var(--ink-2); }
-button.xp { all: unset; cursor: pointer; display: inline-flex; align-items: flex-end; gap: 6px; justify-content: flex-end; text-align: right; }
+button.xp { all: unset; cursor: pointer; display: inline-flex; align-items: flex-end; gap: 6px; justify-content: center; text-align: center; }
+/* Business tables: numbers and headers centred, the campus / grade column stays left (Jay, 16 Nov 2026) */
+table.biz th, table.biz td { text-align: center; }
+table.biz th:first-child, table.biz td:first-child { text-align: left; }
+table.biz thead tr + tr th:first-child { text-align: center; }
 button.xp:hover { color: var(--navy); }
 button.xp:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; border-radius: 3px; }
 button.xp .ar { font-size: 24px; font-weight: 600; line-height: .8; color: var(--navy); opacity: .7; padding: 0 2px; }
@@ -166,7 +170,7 @@ table.biz.funnel td:nth-child(n+9) { font-size: 12px; color: var(--ink-2); }
 table.biz.funnel thead tr + tr th:nth-last-child(-n+4) { font-size: 11px; }
 @media (min-width: 1000px) { table.biz.funnel { table-layout: fixed; } }
 /* second header row (sub-columns): its first cell is not the sticky label column */
-table.biz thead tr + tr th:first-child { position: static; box-shadow: none; text-align: right; background: var(--soft); padding-left: 5px; }
+table.biz thead tr + tr th:first-child { position: static; box-shadow: none; text-align: center; background: var(--soft); padding-left: 5px; }
 table.biz th, table.biz td { padding: 8px 5px; }
 table.biz thead th { min-width: 0; font-size: 11.5px; }
 /* grouped header (Pipeline: Hot / Warm) and the divider either side of the group */
