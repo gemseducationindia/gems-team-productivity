@@ -14,6 +14,12 @@ Same rules as the Insights Business Dashboard it replaces (frj4ta3uje + driqlh66
 - Capacity and carry forward (current strength) per campus and grade come from the capacities CTE in Insights query
   br59hj57ib, so they are edited in one place and both dashboards agree.
 - Deals in ESTIMATES (no fee grid for their grade yet) use estimated fees; the dashboard marks billing that includes them with *.
+- Pipeline (Jay, 16 Nov 2026) = leads whose intent is Hot or Warm (the application's intent once converted, else the lead's),
+  not Junk / Lost, not bulk imports, and whose application has not reached Application Fee Paid (fee paid date set, or status
+  Application Fee Paid / Documents Submitted / Admission Letter Released / Blocking Fee Paid / Enrolled / Withdrawn / Rejected).
+  Dated by enquiry date, like Total Leads.
+- In Waitlists = applications now in Application Submitted / Application Fee Paid / Waitlisted, same exclusions as new
+  admissions. Dated by application_submitted_on, else the application's creation.
 - GMS Raipur is left out.
 CRM datetimes are stored in IST, so their date part is the IST date.
 
@@ -75,9 +81,28 @@ for v in get("GEMS Visit", ["enquiry", "creation", "scheduled_on"]):
     t = min(x for x in (v["creation"], v["scheduled_on"]) if x)
     if v["enquiry"] and (v["enquiry"] not in first_visit or t < first_visit[v["enquiry"]]): first_visit[v["enquiry"]] = t
 
+WAIT = ("Application Submitted", "Application Fee Paid", "Waitlisted")
+PAST_PIPELINE = {"Application Fee Paid", "Documents Submitted", "Admission Letter Released", "Blocking Fee Paid", "Enrolled", "Withdrawn", "Rejected"}
+all_deals = [d for d in get("CRM Deal", ["name", "lead", "territory", "grade_applied", "status", "intent", "is_duplicate", "creation",
+                                         "application_submitted_on", "application_fee_paid_on", "student_name", "lead_name", "lost_notes"])
+             if not d["is_duplicate"] and not has_test(d["name"], d["student_name"], d["lead_name"], d["lost_notes"])]
+deals_of = {}   # lead -> its applications, oldest first
+for d in sorted(all_deals, key=lambda d: d["creation"]):
+    if d["lead"]: deals_of.setdefault(d["lead"], []).append(d)
+
+
+def pipeline(l):
+    """'H' / 'W' for a Hot / Warm lead still in the pipeline, else None"""
+    if l["status"] in ("Junk", "Lost") or is_bulk(l): return None
+    ds = deals_of.get(l["name"], [])
+    if any(d["application_fee_paid_on"] or d["status"] in PAST_PIPELINE for d in ds): return None
+    intent = (ds and ds[-1]["intent"]) or l["intent"]
+    return {"Hot": "H", "Warm": "W"}.get(intent)
+
+
 leads = []
 for l in get("CRM Lead", ["name", "territory", "grade_applied", "creation", "modified", "status", "converted", "visit_attempts",
-                          "visit_done_on", "is_duplicate", "lead_name", "first_name", "last_name", "source", "_user_tags"]):
+                          "visit_done_on", "is_duplicate", "lead_name", "first_name", "last_name", "source", "_user_tags", "intent"]):
     t = l["territory"]
     if l["is_duplicate"] or not t or t.lower().endswith("india") or t in EXCLUDED or has_test(l["lead_name"], l["first_name"], l["last_name"]): continue
     booked = (l["visit_attempts"] or 0) > 0 or l["visit_done_on"] or l["status"] in ("Visit Scheduled", "Visit Done") or l["converted"]
@@ -85,7 +110,7 @@ for l in get("CRM Lead", ["name", "territory", "grade_applied", "creation", "mod
     if is_bulk(l) and not booked: continue
     leads.append([t, l["grade_applied"] or "Not set", None if is_bulk(l) else day(l["creation"]),   # no lead date: not a lead
                   day(first_visit.get(l["name"]) or l["visit_done_on"] or l["modified"]) if booked else None,
-                  day(l["visit_done_on"] or l["modified"]) if done else None])
+                  day(l["visit_done_on"] or l["modified"]) if done else None, pipeline(l)])
 
 fees = {}   # deal -> [[published, discount] per fee type]
 q = {"doctype": "GEMS Application Fee", "parent": "CRM Deal", "limit_page_length": 0,
@@ -119,15 +144,19 @@ for d in get("CRM Deal", ["name", "territory", "grade_applied", "admission_type"
                   day(d["blocking_fee_paid_on"] or d["enrolled_on"] or d["creation"]), fees.get(d["name"], [[0, 0] for _ in FEES])]
                  + ([1] if d["name"] in estimated else []))   # 6th item 1 = fees are an estimate
 
+wait = [[d["territory"], d["grade_applied"] or "Not set", day(d["application_submitted_on"] or d["creation"])]
+        for d in all_deals if d["status"] in WAIT and d["territory"] and d["territory"] not in EXCLUDED]
+
 # compact: campuses and grades as indexes
-campuses = sorted({r[0] for r in caps} | {r[0] for r in leads} | {r[0] for r in deals})
+campuses = sorted({r[0] for r in caps} | {r[0] for r in leads} | {r[0] for r in deals} | {r[0] for r in wait})
 GRADES = ["Pre-Kindergarten", "Nursery", "Junior KG", "Senior KG"] + [f"Grade {n}" for n in range(1, 13)] + ["Not set"]
-grades = GRADES + sorted({r[1] for r in leads + deals} - set(GRADES))
+grades = GRADES + sorted({r[1] for r in leads + deals + wait} - set(GRADES))
 ci, gi = campuses.index, grades.index
 now = datetime.now(IST)
 out = {"generated": now.strftime("%Y-%m-%dT%H:%M"), "today": now.strftime("%Y-%m-%d"), "campuses": campuses, "grades": grades, "fees": FEES,
        "cap": [[ci(t), gi(g), c, e] for t, g, c, e in caps],
-       "leads": [[ci(t), gi(g), a, b, c] for t, g, a, b, c in leads],
+       "leads": [[ci(t), gi(g), a, b, c, p] for t, g, a, b, c, p in leads],
+       "wait": [[ci(t), gi(g), d] for t, g, d in wait],
        "deals": [[ci(t), gi(g), *r] for t, g, *r in deals]}
 # 2027-28 admission targets (targets.json): annual target per campus + monthly phasing; edit that file to change them
 T = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "targets.json")))
@@ -138,4 +167,4 @@ out["phase"] = sorted(T["phasing"].items())
 out["tgt"] = [[ci(t), n] for t, n in T["targets"].items()]
 json.dump(out, open(sys.argv[1] if len(sys.argv) > 1 else "business.json", "w"), separators=(",", ":"))
 rev = sum(p for d in deals for p, _ in d[4]); disc = sum(x for d in deals for _, x in d[4])
-print(f"business: {sum(1 for r in leads if r[2])} leads, {len(deals)} new admissions, revenue {rev:,.0f}, discount {disc:,.0f}, billing {rev - disc:,.0f}")
+print(f"business: {sum(1 for r in leads if r[2])} leads, {sum(1 for r in leads if r[5] == 'H')} hot + {sum(1 for r in leads if r[5] == 'W')} warm in pipeline, {len(wait)} in waitlists, {len(deals)} new admissions, revenue {rev:,.0f}, discount {disc:,.0f}, billing {rev - disc:,.0f}")
