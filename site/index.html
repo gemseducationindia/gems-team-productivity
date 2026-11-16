@@ -143,9 +143,9 @@ details.defs b { color: var(--ink-2); font-weight: 600; }
 table.biz { font-size: 12.5px; }
 /* business report: equal-width columns on wide screens (auto widths below 1200px, where long headers need the room); target block (cols 7-9) and billing block set off by a divider */
 @media (min-width: 1200px) { table.biz.even { table-layout: fixed; width: 100%; } table.biz.even th:first-child { width: 160px; } }
-table.biz.even th:nth-child(5), table.biz.even td:nth-child(5), table.biz.even th:nth-child(8), table.biz.even td:nth-child(8) { border-left: 1px solid var(--line); }
-table.biz.even.open th:nth-child(5), table.biz.even.open td:nth-child(5), table.biz.even.open th:nth-child(8), table.biz.even.open td:nth-child(8) { border-left: 0; }
-table.biz.even.open th:nth-child(7), table.biz.even.open td:nth-child(7), table.biz.even.open th:nth-child(10), table.biz.even.open td:nth-child(10) { border-left: 1px solid var(--line); }
+table.biz.even th:nth-child(5), table.biz.even td:nth-child(5), table.biz.even th:nth-child(7), table.biz.even td:nth-child(7) { border-left: 1px solid var(--line); }
+table.biz.even.open th:nth-child(5), table.biz.even.open td:nth-child(5) { border-left: 0; }
+table.biz.even.open th:nth-child(7), table.biz.even.open td:nth-child(7), table.biz.even.open th:nth-child(9), table.biz.even.open td:nth-child(9) { border-left: 1px solid var(--line); }
 /* Normal / RTE split, opened from the arrow on Total New Admissions */
 table.biz.even.open th:nth-child(5), table.biz.even.open th:nth-child(6) { background: var(--tint); }
 table.biz.even.open td:nth-child(5), table.biz.even.open td:nth-child(6) { background: #F7F9FC; color: var(--ink-2); }
@@ -167,7 +167,7 @@ table.biz.even thead th:nth-last-child(-n+4) { white-space: nowrap; }
 /* sales funnel: counts get the room, conversion % columns kept narrow */
 table.biz.funnel td { font-size: 13.5px; }
 table.biz.funnel td:nth-child(n+9) { font-size: 12px; color: var(--ink-2); }
-table.biz.funnel thead tr + tr th:nth-last-child(-n+4) { font-size: 11px; }
+table.biz.funnel thead tr + tr th:nth-last-child(-n+3) { font-size: 11px; }
 @media (min-width: 1000px) { table.biz.funnel { table-layout: fixed; } }
 /* second header row (sub-columns): its first cell is not the sticky label column */
 table.biz thead tr + tr th:first-child { position: static; box-shadow: none; text-align: center; background: var(--soft); padding-left: 5px; }
@@ -753,8 +753,8 @@ label.ck.gby { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
   const SHOW_CAPACITY = false;   // carry forward / net / capacity / utilisation columns hidden for now (Jay, 10 Nov 2026); data still built
   function tgtCells(r) {
     const t = r.tgt;
-    if (!t) return ["–", "–", "–"];
-    return [bint(t.target), bpct(r.all, t.target), bint(t.todate)];   // Gap and Needed / Month removed (Jay, 10 Nov 2026)
+    if (!t) return ["–", "–"];
+    return [bint(t.target), bpct(r.all, t.target)];   // Gap, Needed / Month (10 Nov) and Target to Date (16 Nov) removed by Jay
   }
   // rounding as MariaDB does it in the Insights query: half up, count ratios to 4 decimals first, then to the shown decimals
   function rhu(num, den) { let q = Math.floor(num / den), r = num - q * den; if (r < 0) { q--; r += den; } if (r >= den) { q++; r -= den; } return 2 * r >= den ? q + 1 : q; }
@@ -831,29 +831,29 @@ label.ck.gby { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
           kpi("Net Billing", money(tot.gross - tot.disc) + star(tot)))),
       h("section", { class: "bsec" },
         h("h2", null, "Business report by " + first.toLowerCase(), h("span", null, "₹ L = lakh")),
-        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Walk-Ins", admHead()].concat(S.badm ? ["Normal", "RTE"] : [], ["Target", "% Ach", "Target to Date"])
+        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Walk-Ins", admHead()].concat(S.badm ? ["Normal", "RTE"] : [], ["Target Admissions", "% Ach"])
           .concat(SHOW_CAPACITY ? ["Admissions (Carry Forwards)", "Net Total Admission", "Current Capacity", "Capacity Utilization %"] : [])
           .concat(["Gross Billing (₹ L)", "Discount Given (₹ L)", "Discount %", "Net Billing (₹ L)"]),
           rows, (r) => [bint(r.leads), bint(r.vd), bint(r.adm)].concat(S.badm ? [bint(r.normal), bint(r.rte)] : [], tgtCells(r))
             .concat(SHOW_CAPACITY ? [bint(r.existing), bint(occ(r)), bint(r.capacity), bpct(occ(r), r.capacity)] : [])
             .concat([lakh(r.gross) + star(r), lakh(r.disc) + star(r), discPct(r), lakh(r.gross - r.disc) + star(r)]), "even" + (S.badm ? " open" : ""),
           // billing columns sized so their headers sit on one line (Jay, 16 Nov 2026)
-          ["160px"].concat(Array(S.badm ? 8 : 6).fill(null), ["132px", "148px", "96px", "124px"])),
+          ["160px"].concat(Array(S.badm ? 7 : 5).fill(null), ["132px", "148px", "96px", "124px"])),
           tot.est ? h("p", { class: "note" }, "* Includes estimated fees for " + bint(tot.est) + " admission" + (tot.est > 1 ? "s" : "") + " whose grade has no fee grid in the CRM yet (GMS Kochi Grades 6 and 7). Tuition is taken at the Grade 5 rate of ₹1,75,450 until the grid is added.") : null)),
       h("section", { class: "bsec funnel-sec" },
         h("h2", null, "Sales funnel by " + first.toLowerCase(), h("span", { class: "ponly" }, where + " · " + when)),
-        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Visits Booked", "Walk-Ins", { group: "Pipeline", cols: ["Warm", "Hot", "Applications", "Enrolled"] },
-          { group: "Conversion %", cols: ["Lead to Visit Booked", "Visit Booked to Visit Done", "Visit Done to Admission", "Lead to Admission"], cls: "cv" }],
-          rows, (r) => [bint(r.leads), bint(r.vs), bint(r.vd), bint(r.warm), bint(r.hot), bint(r.wait), bint(r.adm), bpct(r.vs, r.leads), bpct(r.vd, r.vs), bpct(r.adm, r.vd), bpct(r.adm, r.leads)], "funnel",
-          ["160px", null, null, null, null, null, null, null, "84px", "84px", "84px", "84px"]))),
+        h("div", { class: "panel" }, bizTable(first, ["Total Leads", "Visits Booked", "Walk-Ins", { group: "Pipeline", cols: ["Warm", "Hot", "Applications", "Total New Admissions"] },
+          { group: "Conversion %", cols: ["Lead to Visit Booked", "Visit Booked to Visit Done", "Visit Done to Admission"], cls: "cv" }],
+          rows, (r) => [bint(r.leads), bint(r.vs), bint(r.vd), bint(r.warm), bint(r.hot), bint(r.wait), bint(r.adm), bpct(r.vs, r.leads), bpct(r.vd, r.vs), bpct(r.adm, r.vd)], "funnel",
+          ["160px", null, null, null, null, null, null, null, "88px", "88px", "88px"]))),
       h("details", { class: "defs" },
         h("summary", null, "How these numbers are counted"),
         h("p", null, "Live from the CRM; tests and duplicates excluded; GMS Raipur left out. ", h("b", null, "Period"), " filters leads (enquiry date), visits (visit date), new admissions and billing (blocking fee date). Amounts on the cards are in crores from ₹1 Cr up, else in lakhs."),
         h("p", null, h("b", null, "New admissions"), " = Blocking Fee Paid or Enrolled. The arrow next to Total New Admissions opens the Normal / RTE split (from the application)."),
-        h("p", null, h("b", null, "Targets 2027-28"), " come from the season targets, phased Nov 15%, Dec 20%, Jan 25%, Feb 20%, Mar 10%, Apr 10%. They always use all new admissions so far (every admission before November counts), whatever the period. ", h("b", null, "% Ach"), " = new admissions ÷ annual target. ", h("b", null, "Target to Date"), " = targets of finished months plus today's share of this month. Grade rows show – because targets are set per campus."),
+        h("p", null, h("b", null, "Target Admissions"), " = the 2027-28 season admission targets per campus. ", h("b", null, "% Ach"), " = new admissions ÷ annual target, always using all new admissions so far (every admission before November counts), whatever the period. Grade rows show – because targets are set per campus."),
         h("p", null, h("b", null, "Gross Billing"), " = published application, blocking, tuition and annual fees on every application, plus prospectus where ticked; ", h("b", null, "Discount Given"), " = discounts on those fees; ", h("b", null, "Net Billing"), " = net payable after discount (published − discount), not collections."),
-        h("p", null, h("b", null, "Funnel"), ": Lead to Visit Booked % = visits booked ÷ leads, Visit Booked to Visit Done % = visits done ÷ visits booked, Visit Done to Admission % = new admissions ÷ visits done, Lead to Admission % = new admissions ÷ leads."),
-        h("p", null, h("b", null, "Pipeline"), ": Warm / Hot = leads whose intent is Warm / Hot now (the application's intent once converted), not Junk or Lost, and with no application submitted yet; dated by enquiry date like Total Leads. ", h("b", null, "Applications"), " = applications submitted, fee paid, documents submitted, offer letter released or waitlisted, and not yet a new admission, withdrawn or rejected; dated by application date. ", h("b", null, "Enrolled"), " = Total New Admissions. A lead sits in only one of the four. Bulk imports are left out of lead counts."),
+        h("p", null, h("b", null, "Funnel"), ": Lead to Visit Booked % = visits booked ÷ leads, Visit Booked to Visit Done % = visits done ÷ visits booked, Visit Done to Admission % = new admissions ÷ visits done."),
+        h("p", null, h("b", null, "Pipeline"), ": Warm / Hot = leads whose intent is Warm / Hot now (the application's intent once converted), not Junk or Lost, and with no application submitted yet; dated by enquiry date like Total Leads. ", h("b", null, "Applications"), " = applications submitted, fee paid, documents submitted, offer letter released or waitlisted, and not yet a new admission, withdrawn or rejected; dated by application date. ", h("b", null, "Total New Admissions"), " = Blocking Fee Paid or Enrolled. A lead sits in only one of the four. Bulk imports are left out of lead counts."),
         h("p", null, "The data refreshes every hour; Refresh pulls it again now."))
     );
   }
