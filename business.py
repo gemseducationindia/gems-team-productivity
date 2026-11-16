@@ -18,8 +18,10 @@ Same rules as the Insights Business Dashboard it replaces (frj4ta3uje + driqlh66
   not Junk / Lost, not bulk imports, and whose application has not reached Application Fee Paid (fee paid date set, or status
   Application Fee Paid / Documents Submitted / Admission Letter Released / Blocking Fee Paid / Enrolled / Withdrawn / Rejected).
   Dated by enquiry date, like Total Leads.
-- In Waitlists = applications now in Application Submitted / Application Fee Paid / Waitlisted, same exclusions as new
-  admissions. Dated by application_submitted_on, else the application's creation.
+- Application Fee Paid (Jay, 16 Nov 2026; was In Waitlists) = applications that have paid the application fee (fee paid date
+  set, or status Application Fee Paid / Documents Submitted / Admission Letter Released) and are not yet a new admission,
+  withdrawn or rejected; same exclusions as new admissions. So Warm, Hot, Application Fee Paid and Enrolled never overlap.
+  Dated by application_fee_paid_on, else application_submitted_on, else the application's creation.
 - GMS Raipur is left out.
 CRM datetimes are stored in IST, so their date part is the IST date.
 
@@ -81,7 +83,8 @@ for v in get("GEMS Visit", ["enquiry", "creation", "scheduled_on"]):
     t = min(x for x in (v["creation"], v["scheduled_on"]) if x)
     if v["enquiry"] and (v["enquiry"] not in first_visit or t < first_visit[v["enquiry"]]): first_visit[v["enquiry"]] = t
 
-WAIT = ("Application Submitted", "Application Fee Paid", "Waitlisted")
+FEE_PAID = {"Application Fee Paid", "Documents Submitted", "Admission Letter Released"}
+DONE = {"Blocking Fee Paid", "Enrolled", "Withdrawn", "Rejected"}
 PAST_PIPELINE = {"Application Fee Paid", "Documents Submitted", "Admission Letter Released", "Blocking Fee Paid", "Enrolled", "Withdrawn", "Rejected"}
 all_deals = [d for d in get("CRM Deal", ["name", "lead", "territory", "grade_applied", "status", "intent", "is_duplicate", "creation",
                                          "application_submitted_on", "application_fee_paid_on", "student_name", "lead_name", "lost_notes"])
@@ -144,8 +147,9 @@ for d in get("CRM Deal", ["name", "territory", "grade_applied", "admission_type"
                   day(d["blocking_fee_paid_on"] or d["enrolled_on"] or d["creation"]), fees.get(d["name"], [[0, 0] for _ in FEES])]
                  + ([1] if d["name"] in estimated else []))   # 6th item 1 = fees are an estimate
 
-wait = [[d["territory"], d["grade_applied"] or "Not set", day(d["application_submitted_on"] or d["creation"])]
-        for d in all_deals if d["status"] in WAIT and d["territory"] and d["territory"] not in EXCLUDED]
+wait = [[d["territory"], d["grade_applied"] or "Not set", day(d["application_fee_paid_on"] or d["application_submitted_on"] or d["creation"])]
+        for d in all_deals if (d["application_fee_paid_on"] or d["status"] in FEE_PAID) and d["status"] not in DONE
+        and d["territory"] and d["territory"] not in EXCLUDED]
 
 # compact: campuses and grades as indexes
 campuses = sorted({r[0] for r in caps} | {r[0] for r in leads} | {r[0] for r in deals} | {r[0] for r in wait})
@@ -167,4 +171,4 @@ out["phase"] = sorted(T["phasing"].items())
 out["tgt"] = [[ci(t), n] for t, n in T["targets"].items()]
 json.dump(out, open(sys.argv[1] if len(sys.argv) > 1 else "business.json", "w"), separators=(",", ":"))
 rev = sum(p for d in deals for p, _ in d[4]); disc = sum(x for d in deals for _, x in d[4])
-print(f"business: {sum(1 for r in leads if r[2])} leads, {sum(1 for r in leads if r[5] == 'H')} hot + {sum(1 for r in leads if r[5] == 'W')} warm in pipeline, {len(wait)} in waitlists, {len(deals)} new admissions, revenue {rev:,.0f}, discount {disc:,.0f}, billing {rev - disc:,.0f}")
+print(f"business: {sum(1 for r in leads if r[2])} leads, {sum(1 for r in leads if r[5] == 'H')} hot + {sum(1 for r in leads if r[5] == 'W')} warm in pipeline, {len(wait)} application fee paid, {len(deals)} new admissions, revenue {rev:,.0f}, discount {disc:,.0f}, billing {rev - disc:,.0f}")
