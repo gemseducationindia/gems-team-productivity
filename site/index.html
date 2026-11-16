@@ -481,6 +481,7 @@ label.ck.gby { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
     $("#whoName").textContent = D.user;
     if (D.role === "counsellor" || D.role === "central") { S.tab = "central"; S.period = "today"; }   // a central counsellor: own numbers, opening on Today
     else if (D.role !== "corporate") S.tab = "school";
+    if (D.biz) S.tab = "business";   // open on the Business tab for every login that has it (Jay, 16 Nov 2026)
     render();
     callAuditKeys().then((p) => { CALLS = p; if (p) { tabs(); preloadCalls(); } });
   }
