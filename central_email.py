@@ -113,8 +113,19 @@ if "--send" in sys.argv:
     # send once a day at most: skip if today's email already exists in the CRM (another run or a manual send)
     if "--force" not in sys.argv and get("Communication", ["name"], [["subject", "=", subject], ["sent_or_received", "=", "Sent"]]):
         print("already sent today, skipping:", subject); sys.exit(0)
-    data = urllib.parse.urlencode({"recipients": to, "cc": os.environ.get("TT_CC", ""), "subject": subject,
+    # The CRM silently drops CC addresses of users whose "Send Notifications For Email Threads" is off (18 Nov: Jay's copy
+    # was lost this way), but never drops To addresses. So any such CC address is moved to To.
+    cc = [e.strip() for e in os.environ.get("TT_CC", "").split(",") if e.strip()]
+    muted = {u["email"] for u in get("User", ["email"], [["email", "in", cc], ["thread_notify", "=", 0]])} if cc else set()
+    if muted:
+        print("moving to To (thread notifications off):", ", ".join(sorted(muted)))
+        to = ",".join([to] + sorted(muted)); cc = [e for e in cc if e not in muted]
+    data = urllib.parse.urlencode({"recipients": to, "cc": ",".join(cc), "subject": subject,
                                    "content": html, "send_email": 1, "sender": os.environ.get("TT_FROM", "admissiondesk@gemsedu.in")}).encode()
     req = urllib.request.Request(f"{HOST}/api/method/frappe.core.doctype.communication.email.make", data=data,
                                  headers={"Authorization": AUTH, "Content-Type": "application/x-www-form-urlencoded"})
-    with urllib.request.urlopen(req, timeout=120) as r: print("sent", json.load(r).get("message"))
+    with urllib.request.urlopen(req, timeout=120) as r: msg = json.load(r).get("message") or {}
+    print("sent", msg)
+    if isinstance(msg, dict) and msg.get("emails_not_sent_to"):
+        # the email went out, but someone was left off: fail the run so it shows red (a rerun skips, as the email exists)
+        print(f"::error::Email sent, but the CRM did not send it to: {msg['emails_not_sent_to']}"); sys.exit(1)
