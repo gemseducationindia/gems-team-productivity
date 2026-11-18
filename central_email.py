@@ -1,7 +1,7 @@
 """Daily central admissions desk stats email, from the live CRM. Same counting rules as the productivity dashboard (build.py).
 
 Usage: python3 central_email.py [YYYY-MM-DD] [--send] [--force]   (--send skips if that day's email was already sent; --force sends anyway)   (date defaults to today IST; without --send it only writes central.html)
-- Calls: every CRM Call Log, incoming + outgoing, started 09:00-19:00 IST that day. Incoming calls count for the receiver.
+- Calls: every Exotel CRM Call Log (Manual popup logs left out, as on the dashboard), incoming + outgoing, started 09:00-19:00 IST that day. Incoming calls count for the receiver.
 - Incoming calls / outbound dials and incoming / outbound talk time are shown separately, plus the totals.
 - Connect = status Completed with duration > 0. Talk time = call durations. Unique dials = distinct numbers.
 - Visits booked / done: the dashboard's central desk visit rules (build.py), for that day.
@@ -38,7 +38,7 @@ central = sorted(u for u, r in roles.items() if "GEMS Central Counsellor" in r a
 pid = {u: i for i, p in enumerate(P["people"]) if p["t"] == "c" for u in central if p["n"] == full[u].split(" ")[0]}
 
 calls = get("CRM Call Log", ["type", "caller", "receiver", "from", "to", "status", "duration"],
-            [["start_time", ">=", f"{D} 09:00:00"], ["start_time", "<", f"{D} 19:00:00"]])
+            [["start_time", ">=", f"{D} 09:00:00"], ["start_time", "<", f"{D} 19:00:00"], ["telephony_medium", "=", "Exotel"]])
 S = lambda: {"dials": 0, "conn": 0, "tt": 0, "nums": set(), "in": 0, "out": 0, "tt_in": 0, "tt_out": 0}
 st = defaultdict(S)
 for c in calls:

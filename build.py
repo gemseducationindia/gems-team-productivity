@@ -5,6 +5,9 @@ Same rules as the Insights dashboards it replaces (Central Desk Productivity, Sc
   (lead owner) or are assigned to (open ToDo).
 - School team = enabled users with a CRM Territory User Permission, minus central counsellors and System Managers (campus
   managers included, as in Insights). They are credited for leads where they are the lead owner, once per campus they cover.
+- Calls = Exotel call logs only, so every number tallies with Exotel (Jay, 18 Nov 2026). Manual logs (the call-outcome popup
+  saved on top of an Exotel call) are left out: they double-counted calls. The nightly Exotel sync (gems-call-audit-data
+  crm_sync.py) puts Exotel's status, talk time and start time on every log; a log with no start time uses its creation time.
 - Dial = any call, incoming or outgoing (incoming is credited to the receiver). Connect = status Completed with duration > 0.
   Talk time = all call durations, incoming + outgoing. Unique leads = distinct numbers called or calling in.
 - Duplicates and test leads ('test' in the lead name) are left out, as on the Business tab.
@@ -92,10 +95,11 @@ for l in sorted(leads, key=lambda l: l["modified"]):   # latest lead wins when a
 
 # ---- calls: per person per day ----
 calls = []   # one row per call: who (counsellor), num (the other party), status, duration, start_time
-for c in get("CRM Call Log", ["type", "caller", "receiver", "from", "to", "status", "duration", "start_time"]):
+for c in get("CRM Call Log", ["type", "caller", "receiver", "from", "to", "status", "duration", "start_time", "creation"],
+             [["telephony_medium", "=", "Exotel"]]):
     out = c["type"] == "Outgoing"
     calls.append({"caller": c["caller"] if out else c["receiver"], "to": c["to"] if out else (c["from"] or c["caller"]),
-                  "status": c["status"], "duration": c["duration"], "start_time": c["start_time"], "in": not out})
+                  "status": c["status"], "duration": c["duration"], "start_time": c["start_time"] or c["creation"], "in": not out})
 # a lead with any call linked to it (incoming too) is not untouched, as in Insights
 linked = {c["reference_docname"] for c in get("CRM Call Log", ["reference_docname"], [["reference_doctype", "=", "CRM Lead"], ["reference_docname", "is", "set"]])}
 dialled = set()
