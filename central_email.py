@@ -6,7 +6,7 @@ Usage: python3 central_email.py [YYYY-MM-DD] [--send] [--force]   (--send skips 
 - Connect = status Completed with duration > 0. Talk time = call durations. Unique dials = distinct numbers.
 - Visits booked / done: the dashboard's central desk visit rules (build.py), for that day.
 Env: CRM_TOKEN or FRAPPE_API_KEY + FRAPPE_API_SECRET; TT_TO, TT_CC (comma-separated).
-Sent Mon-Sat by .github/workflows/central-email.yml (started at 7:30 pm IST by a Claude scheduled task, backup schedule 7:45 pm IST); recipients come from the TT_TO / TT_CC secrets.
+Sent Mon-Sat by .github/workflows/central-email.yml (started at 7:30 pm IST by a Claude scheduled task, backup schedule 7:45 pm IST); only sends Mon-Sat 7-10 pm IST, never on Sundays, never an all-zero day; recipients come from the TT_TO / TT_CC secrets.
 """
 import json, os, subprocess, sys, tempfile, urllib.parse, urllib.request
 from collections import defaultdict
@@ -19,6 +19,16 @@ IST = timezone(timedelta(hours=5, minutes=30))
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 DAY = date.fromisoformat(args[0]) if args else datetime.now(IST).date()
 D = DAY.isoformat()
+SEND, FORCE = "--send" in sys.argv, "--force" in sys.argv
+# 22 Nov: GitHub started Saturday's 7:45 pm backup run 6 hours late (2:03 am IST Sunday), so "today IST" was Sunday and an
+# all-zero Sunday email went out. Automatic sends now only happen Mon-Sat between 7 pm and 10 pm IST; anything else exits
+# quietly. An explicit date (manual re-run) skips the time window, but never a Sunday (see below) unless --force.
+if SEND and not FORCE and not args:
+    now = datetime.now(IST)
+    if now.weekday() == 6 or not (19 <= now.hour < 22):
+        print(f"outside the Mon-Sat 7-10 pm IST send window ({now:%a %d %b %H:%M} IST), not sending"); sys.exit(0)
+if SEND and not FORCE and DAY.weekday() == 6:
+    print(f"{D} is a Sunday, no email on Sundays"); sys.exit(0)
 BUILD = os.environ.get("BUILD_PY", os.path.join(os.path.dirname(os.path.abspath(__file__)), "build.py"))
 
 # dashboard data (people, visits) so the numbers tally with the productivity report
@@ -106,12 +116,15 @@ html = f"""<div style="font-family:Segoe UI,Arial,sans-serif;color:#111827;font-
 out = os.path.join(tempfile.gettempdir(), "central.html")
 open(out, "w").write(html); print("wrote", out, "for", D)
 
-if "--send" in sys.argv:
+if SEND:
+    if not FORCE and t["dials"] == 0 and not vb["team"] and not vd["team"]:
+        # an all-zero day means a holiday, a broken data pull or a wrong date: never mail zeros to the team
+        print(f"::warning::No calls or visits for {D}, not sending an all-zero email"); sys.exit(0)
     to = os.environ.get("TT_TO", "")
     if not to: sys.exit("TT_TO is not set")
     subject = f"Central Admissions Team: Daily Summary, {DAY.day} {DAY.strftime('%b %Y')}"
     # send once a day at most: skip if today's email already exists in the CRM (another run or a manual send)
-    if "--force" not in sys.argv and get("Communication", ["name"], [["subject", "=", subject], ["sent_or_received", "=", "Sent"]]):
+    if not FORCE and get("Communication", ["name"], [["subject", "=", subject], ["sent_or_received", "=", "Sent"]]):
         print("already sent today, skipping:", subject); sys.exit(0)
     # The CRM silently drops CC addresses of users whose "Send Notifications For Email Threads" is off (18 Nov: Jay's copy
     # was lost this way), but never drops To addresses. So any such CC address is moved to To.

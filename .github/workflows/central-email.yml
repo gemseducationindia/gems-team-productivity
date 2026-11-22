@@ -1,7 +1,9 @@
 # Central admissions team daily summary email (central_email.py), Mon-Sat.
 # Started at 7:30 pm IST by a Claude scheduled task (workflow_dispatch, starts within a minute); the schedule below is a
 # backup at 7:45 pm IST in case that start is missed. central_email.py skips sending if the day's email already went out,
-# so the two starts never send twice. Needs secrets CRM_TOKEN ("key:secret"), TT_TO and TT_CC (comma-separated emails).
+# so the two starts never send twice. It also refuses to send outside Mon-Sat 7-10 pm IST (GitHub can start a schedule hours
+# late: on 22 Nov the Saturday backup ran at 2:03 am IST Sunday), on Sundays, or when the day has no calls or visits.
+# Needs secrets CRM_TOKEN ("key:secret"), TT_TO and TT_CC (comma-separated emails).
 name: Central team email
 on:
   workflow_dispatch:
