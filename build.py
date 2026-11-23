@@ -5,6 +5,8 @@ Same rules as the Insights dashboards it replaces (Central Desk Productivity, Sc
   (lead owner) or are assigned to (open ToDo).
 - School team = enabled users with a CRM Territory User Permission, minus central counsellors and System Managers (campus
   managers included, as in Insights). They are credited for leads where they are the lead owner, once per campus they cover.
+- The shared Admissions desk login shows on the Central tab and Zainab (left; Vikhroli) on the School tab, so their calls are in
+  the team totals (EXTRA_CENTRAL / EXTRA_SCHOOL below).
 - Calls = Exotel call logs only, so every number tallies with Exotel (Jay, 18 Nov 2026). Manual logs (the call-outcome popup
   saved on top of an Exotel call) are left out: they double-counted calls. The nightly Exotel sync (gems-call-audit-data
   crm_sync.py) puts Exotel's status, talk time and start time on every log; a log with no start time uses its creation time.
@@ -67,10 +69,16 @@ first = lambda uid: full[uid].split(" ")[0]   # first word of the full name, as 
 # logins file doesn't name anyone; the call audit site (gems-call-audit-data publish.py) computes the same hash
 person_id = lambda uid: hashlib.sha256(("gems-productivity:person:" + uid.split("@")[0].lower()).encode()).hexdigest()[:16]
 
-central = sorted(u for u, r in roles.items() if "GEMS Central Counsellor" in r and "System Manager" not in r)
+# Callers the role rules above miss, so team totals equal Exotel (Jay, 23 Nov 2026): the shared Admissions desk login (the
+# central incoming line; a System Manager, so left out above) and counsellors who have left, whose logins are disabled.
+EXTRA_CENTRAL = {"admissiondesk@gemsedu.in": "Admissions desk"}
+EXTRA_SCHOOL = {"zainab.sohani@gemsedu.in": ("Zainab", "GEMS Millennium School - Vikhroli")}
+central = sorted({u for u, r in roles.items() if "GEMS Central Counsellor" in r and "System Manager" not in r} | set(EXTRA_CENTRAL))
 perms = get("User Permission", ["user", "for_value"], [["allow", "=", "CRM Territory"]])
 school = sorted({(p["user"], p["for_value"]) for p in perms if p["user"] in roles
-                 and not roles[p["user"]] & {"GEMS Central Counsellor", "System Manager"}})
+                 and not roles[p["user"]] & {"GEMS Central Counsellor", "System Manager"}}
+                | {(u, c) for u, (_, c) in EXTRA_SCHOOL.items()})
+full.update(EXTRA_CENTRAL); full.update({u: n for u, (n, _) in EXTRA_SCHOOL.items()})
 campuses = sorted({c for _, c in school} | {p["for_value"] for p in perms})
 
 # people: one row per central counsellor, and one per (school counsellor, campus)
